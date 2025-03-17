@@ -1,0 +1,9 @@
+services:
+  djangox509:
+    build: .
+    volumes:
+      - .:/djangox509
+    ports:
+      - "8000:8000"
+    working_dir: /djangox509/tests
+    command: ["./docker-entrypoint.sh"]
