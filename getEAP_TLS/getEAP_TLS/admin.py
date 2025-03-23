@@ -24,12 +24,12 @@ class WifiNetworkLocationAdmin(ModelAdmin):
     Admin class for a WifiLocation model
     """
     # Campos que se mostrarán en la lista de ubicaciones
-    list_display = ["name", "ca", "description", "location", "start_date", "end_date"]
+    list_display = ["name", "radius_CA", "certificates_CA", "description", "location", "start_date", "end_date", "SSID"]
     # Campos con los que se podrán buscar ubicaciones
     search_fields = ["name", "description", "location", "start_date", "end_date"]
     # Campos editables en la interfaz de admin
-    fields = ["name", "ca", "description", "location", "start_date", "end_date"]
-
+    fields = ["name", "radius_CA", "certificates_CA", "description", "location", "start_date", "end_date", "SSID"]
+    
 
 django_admin.site.register(WifiUser, WifiUserAdmin)
 django_admin.site.register(WifiNetworkLocation, WifiNetworkLocationAdmin)

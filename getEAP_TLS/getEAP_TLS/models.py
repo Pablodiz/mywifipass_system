@@ -30,10 +30,12 @@ class WifiNetworkLocation(models.Model):
     """
 
     name = models.CharField(max_length=64, blank=False, null=False)
-    ca = models.ForeignKey(Ca, on_delete=models.SET_NULL, blank=False, null=True)
+    certificates_CA = models.ForeignKey(Ca, on_delete=models.SET_NULL, blank=False, null=True, related_name="certificates_CA")
+    radius_CA = models.ForeignKey(Ca, on_delete=models.SET_NULL, blank=False, null=True, related_name="radius_CA")
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=64, blank=True, null=True)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
+    SSID = models.CharField(max_length=32, blank=False, null=True)
     def __str__(self):
         return self.name

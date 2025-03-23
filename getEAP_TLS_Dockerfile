@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     libsqlite3-dev
 RUN pip3 install -U pip setuptools wheel
 RUN pip3 install -e .
-RUN echo "django-x509 Installed"
+RUN pip3 install -r getEAP_TLS/requirements.txt
 
 WORKDIR $DIR/getEAP_TLS
 EXPOSE 8000
