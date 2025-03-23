@@ -1,0 +1,19 @@
+{
+    "name": "django-x509-dev",
+    "dockerComposeFile": "../docker-compose.yaml",
+    "service": "djangox509",
+    "workspaceFolder": "/djangox509",
+    "customizations": {
+      "vscode":{
+        "settings": {
+          "terminal.integrated.defaultProfile.linux": "bash"
+        },
+        "extensions": [
+          "ms-python.python",
+          "ms-python.vscode-pylance"
+        ]
+      }
+    },
+    "postCreateCommand": "pip install -r requirements.txt || true"
+  }
+  
