@@ -1,9 +1,11 @@
 services:
   djangox509:
-    build: .
+    build: 
+      context: .
+      dockerfile: getEAP_TLS_Dockerfile
     volumes:
       - .:/djangox509
     ports:
       - "8000:8000"
-    working_dir: /djangox509/tests
+    working_dir: /djangox509/getEAP_TLS
     command: ["./docker-entrypoint.sh"]
