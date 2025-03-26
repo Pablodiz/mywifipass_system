@@ -9,3 +9,11 @@ services:
       - "8000:8000"
     working_dir: /djangox509/getEAP_TLS
     command: ["./docker-entrypoint.sh"]
+  radius:
+    build: ./our_radius
+    ports:
+      - "1812:1812"
+      - "1813:1813"
+    env_file:
+      - ./our_radius/config.env
+

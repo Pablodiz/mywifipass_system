@@ -1,0 +1,9 @@
+client openwrt{
+    ipaddr = ${CLIENT_IP} 
+    proto = *
+    secret = ${RADIUS_SECRET}
+    require_message_authenticator = yes
+    limit_proxy_state = yes
+    shortname = openwrt
+}
+
