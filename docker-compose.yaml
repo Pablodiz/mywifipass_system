@@ -5,6 +5,7 @@ services:
       dockerfile: getEAP_TLS_Dockerfile
     volumes:
       - .:/djangox509
+      - shared-certs:/djangox509/getEAP_TLS/certs 
     ports:
       - "8000:8000"
     working_dir: /djangox509/getEAP_TLS
@@ -16,4 +17,8 @@ services:
       - "1813:1813"
     env_file:
       - ./our_radius/config.env
+    volumes:
+      - shared-certs:/etc/raddb/certs  
 
+volumes:
+  shared-certs:  # Definir el volumen compartido
