@@ -11,7 +11,7 @@ class WifiUser(models.Model):
     id_document = models.CharField(max_length=20, blank=False, null=False)
     certificate = models.ForeignKey(Cert, on_delete=models.SET_NULL, blank=False, null=True)
     wifiLocation = models.ForeignKey('WifiNetworkLocation', on_delete=models.SET_NULL, blank=False, null=True)
-
+    uuid = models.UUIDField(default=None, blank=True, null=True) 
     @property
     def name(self):
         return self.certificate.name
