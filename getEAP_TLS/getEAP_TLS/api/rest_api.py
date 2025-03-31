@@ -2,18 +2,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from getEAP_TLS.models import WifiUser, Ca, Cert
+from getEAP_TLS.models import WifiUser, Ca, Cert, WifiNetworkLocation
 
-@api_view(['GET'])
-def hello(request):
-    name = request.GET.get('name', 'guest')
-    data = {
-        'name': name,
-        'message': f"Hello {name}, your first API endpoint has been created successfully!"
-    }
-    return Response(data, status=status.HTTP_200_OK)
-
-def get_certificate_information (cert: Cert, ca: Ca):
+def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
     """ 
     Función que devuelve:
     - La clave privada del usuario
@@ -22,10 +13,14 @@ def get_certificate_information (cert: Cert, ca: Ca):
 
     """
     json_data = {
-        'name': cert.name,
-        'certificate': cert.certificate,
-        'private_key': cert.private_key,
-        'ca_certificate': ca.certificate    
+        'user_name': wifiuser.certificate.common_name,
+        'user_email': wifiuser.certificate.email,
+        'user_id_document': wifiuser.id_document,
+        'certificate': wifiuser.certificate.certificate,
+        'private_key': wifiuser.certificate.private_key,
+        'ca_certificate': wifiNetworkLocation.certificates_CA.certificate,    
+        'network_common_name': wifiNetworkLocation.certificates_CA.common_name,
+        'ssid': wifiNetworkLocation.SSID
     }
     return json_data
 
@@ -34,11 +29,5 @@ def user(request):
     id = request.GET.get('id', '0')
     user = WifiUser.objects.get(id=id)
     wifiLocation = user.wifiLocation
-    data = {
-        'ssid': wifiLocation.SSID,
-    }
-
-    certificate_information = get_certificate_information(user.certificate, wifiLocation.radius_CA)
-    data.update(certificate_information) 
-
+    data = get_certificate_information(user, wifiLocation)
     return Response(data, status=status.HTTP_200_OK)
