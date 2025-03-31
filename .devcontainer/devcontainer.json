@@ -2,7 +2,7 @@
     "name": "django-x509-dev",
     "dockerComposeFile": "../docker-compose.yaml",
     "service": "djangox509",
-    "workspaceFolder": "/djangox509",
+    "workspaceFolder": "/djangox509/getEAP_TLS",
     "customizations": {
       "vscode":{
         "settings": {
