@@ -1,6 +1,8 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.http import Http404
 
 from getEAP_TLS.models import WifiUser, Ca, Cert, WifiNetworkLocation
 
@@ -25,9 +27,13 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
     return json_data
 
 @api_view(['GET'])
-def user(request):
-    id = request.GET.get('id', '0')
-    user = WifiUser.objects.get(id=id)
-    wifiLocation = user.wifiLocation
-    data = get_certificate_information(user, wifiLocation)
-    return Response(data, status=status.HTTP_200_OK)
+def user(request, id: int):
+    try:
+        user = get_object_or_404(WifiUser, id=id)
+        wifiLocation = user.wifiLocation
+        data = get_certificate_information(user, wifiLocation)
+        return Response(data, status=status.HTTP_200_OK)
+    except Http404: 
+        return Response({'error': 'User with id ' + str(id)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
