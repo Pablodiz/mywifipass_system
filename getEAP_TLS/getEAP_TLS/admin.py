@@ -7,7 +7,7 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation"]
     list_filter = ["wifiLocation"]

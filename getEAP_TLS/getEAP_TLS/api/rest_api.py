@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import Http404
-
+import uuid
 from getEAP_TLS.models import WifiUser, Ca, Cert, WifiNetworkLocation
 
 def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
@@ -27,9 +27,9 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
     return json_data
 
 @api_view(['GET'])
-def user(request, id: int):
+def user(request, uuid: uuid):
     try:
-        user = get_object_or_404(WifiUser, id=id)
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
         wifiLocation = user.wifiLocation
         data = get_certificate_information(user, wifiLocation)
         return Response(data, status=status.HTTP_200_OK)
