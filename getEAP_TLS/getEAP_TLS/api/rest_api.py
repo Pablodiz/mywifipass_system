@@ -6,13 +6,23 @@ from django.http import Http404
 import uuid
 from getEAP_TLS.models import WifiUser, Ca, Cert, WifiNetworkLocation
 
+def replace_nulls(obj):
+    if isinstance(obj, dict):
+        return {k: replace_nulls(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_nulls(v) for v in obj]
+    elif obj is None:
+        return ""
+    return obj
+
 def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
     """ 
-    Función que devuelve:
-    - La clave privada del usuario
-    - Su certificado
-    - El certificado de la CA
-
+    Function to get the information of the user and the location
+    Args:
+        wifiuser: WifiUser object
+        wifiNetworkLocation: WifiNetworkLocation object
+    Returns:
+        json_data: JSON object with the information of the user and the location
     """
     json_data = {
         'user_name': wifiuser.certificate.common_name,
@@ -22,9 +32,16 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'private_key': wifiuser.certificate.private_key,
         'ca_certificate': wifiNetworkLocation.certificates_CA.certificate,    
         'network_common_name': wifiNetworkLocation.certificates_CA.common_name,
-        'ssid': wifiNetworkLocation.SSID
+        'ssid': wifiNetworkLocation.SSID,
+        'user_uuid': wifiuser.user_uuid,
+        'location': wifiNetworkLocation.location,
+        'start_date': wifiNetworkLocation.start_date,
+        'end_date': wifiNetworkLocation.end_date,
+        'description': wifiNetworkLocation.description,
+        'location_name': wifiNetworkLocation.name,
+        
     }
-    return json_data
+    return replace_nulls(json_data)
 
 @api_view(['GET'])
 def user(request, uuid: uuid):
