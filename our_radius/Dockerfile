@@ -4,7 +4,6 @@ FROM freeradius/freeradius-server:latest
 # Config files
 COPY ./eap /etc/raddb/mods-available/eap
 COPY ./clients.conf.template /etc/raddb/clients.conf.template
-COPY ./certs /etc/raddb/certs/
 
 RUN apt-get update &&   \
     # We install envsubst
