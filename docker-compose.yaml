@@ -1,24 +1,31 @@
 services:
   djangox509:
-    build: 
+    build:
       context: .
       dockerfile: getEAP_TLS_Dockerfile
     volumes:
       - .:/djangox509
-      - shared-certs:/djangox509/getEAP_TLS/server_certs 
+      - shared-certs:/djangox509/getEAP_TLS/server_certs
     ports:
       - "8000:8000"
     working_dir: /djangox509/getEAP_TLS
     command: ["./docker-entrypoint.sh"]
+    networks:
+      - our_network
   radius:
     build: ./our_radius
     ports:
-      - "1812:1812"
-      - "1813:1813"
+      - "1812:1812/udp"
+      - "1813:1813/udp"
     env_file:
       - ./our_radius/config.env
     volumes:
-      - shared-certs:/etc/raddb/server_certs  
-
+      - shared-certs:/etc/raddb/server_certs
+    networks:
+      - our_network
 volumes:
   shared-certs:  # Definir el volumen compartido
+
+networks:
+  our_network:
+    driver: bridge

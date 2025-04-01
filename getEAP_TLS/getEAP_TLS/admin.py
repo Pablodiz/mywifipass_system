@@ -1,37 +1,33 @@
-#from django_x509 import admin # noqa
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
 from django.contrib.admin import ModelAdmin
 from django.contrib import admin as django_admin
+from django_x509.models import Cert, Ca
 
-
-
-# Para que salga en la interfaz de admin, se crea una clase que hereda de ModelAdmin
-# y se registra en el admin de django
 class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    # Campos que se mostrarán en la lista de usuarios
-    list_display = ["name", "email", "id_document", "certificate", "wifiLocation"]
-    # Campos con los que se podrán buscar usuarios
-    search_fields = ["name", "email", "id_document", "wifiLocation"]
-    # Campos editables en la interfaz de admin
-    fields = ["id_document", "certificate", "wifiLocation"]
-    
+    list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid"]
+    search_fields = ["name", "email","id_document"] 
+    fields = ["name", "email","id_document", "wifiLocation"]
+    list_filter = ["wifiLocation"]
+
 
 class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiLocation model
     """
-    # Campos que se mostrarán en la lista de ubicaciones
-    list_display = ["name", "radius_CA", "certificates_CA", "description", "location", "start_date", "end_date", "SSID"]
-    # Campos con los que se podrán buscar ubicaciones
-    search_fields = ["name", "description", "location", "start_date", "end_date"]
-    # Campos editables en la interfaz de admin
-    fields = ["name", "radius_CA", "certificates_CA", "description", "location", "start_date", "end_date", "SSID"]
+    list_display = ["name",  "SSID", "location", "start_date", "end_date"]
+    search_fields = ["name", "SSID", "description", "location"]
+    fields = ["name", "SSID", "description", "location", "start_date", "end_date"]
     
 
 django_admin.site.register(WifiUser, WifiUserAdmin)
 django_admin.site.register(WifiNetworkLocation, WifiNetworkLocationAdmin)
+# Unregister Ca and Cert from admin panel "para que sea transparente para el usuario" 
+django_admin.site.unregister(Cert)
+django_admin.site.unregister(Ca)
 
-
+django_admin.site.site_header = "getEAP_TLS Administration"
+django_admin.site.site_title = "getEAP_TLS site Administration"
+django_admin.site.index_title = "getEAP_TLS Administration"

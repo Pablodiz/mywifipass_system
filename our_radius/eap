@@ -7,7 +7,6 @@ eap {
 	max_sessions = ${max_requests}
 	
 	tls-config tls-common {
-		private_key_password = whatever
 		private_key_file = /etc/raddb/server_certs/server.key
 		certificate_file = /etc/raddb/server_certs/server.pem
 		ca_file = /etc/raddb/server_certs/ca.pem
