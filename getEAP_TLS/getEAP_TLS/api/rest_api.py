@@ -2,9 +2,11 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.http import Http404
+from django.http import Http404, FileResponse
 import uuid
-from getEAP_TLS.models import WifiUser, Ca, Cert, WifiNetworkLocation
+from getEAP_TLS.models import WifiUser, WifiNetworkLocation
+from getEAP_TLS.settings import BASE_URL, API_PATH, USER_PATH
+from getEAP_TLS.utils import generate_qr_code
 
 def replace_nulls(obj):
     if isinstance(obj, dict):
@@ -49,8 +51,34 @@ def user(request, uuid: uuid):
         user = get_object_or_404(WifiUser, user_uuid=uuid)
         wifiLocation = user.wifiLocation
         data = get_certificate_information(user, wifiLocation)
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     except Http404: 
         return Response({'error': 'User with id ' + str(id)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def user_qr(request, uuid: uuid):
+    """
+    Handles the HTTP request to generate and return a QR code for a WifiUser.
+    
+    Args:
+        request: The HTTP request object.
+        uuid (uuid): The UUID of the WifiUser.
+    
+    Returns:
+        FileResponse: A response containing the QR code image.
+    """
+    try:
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        url = BASE_URL + API_PATH + USER_PATH + str(user.user_uuid) + "/"
+        buffer = generate_qr_code(url)
+        
+        # Return the binary stream as a FileResponse
+        response = FileResponse(buffer, content_type="image/png")
+        response["Content-Disposition"] = "inline"  # Ensure the image is displayed in the browser
+        return response
+    except Http404: 
+        return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

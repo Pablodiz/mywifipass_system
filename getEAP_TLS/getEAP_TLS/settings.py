@@ -9,7 +9,6 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,6 +25,11 @@ SECRET_KEY = 'django-insecure-_#y6!8g^9uvy&uszqgwky)o59inz&-!y0cnb%#d_-1b969x0j)
 DEBUG = True
 
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
+
+# URL configuration 
+BASE_URL = "http://localhost:8000/"
+USER_PATH = "user/" 
+API_PATH = "api/"
 
 
 # Application definition
