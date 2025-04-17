@@ -1,0 +1,24 @@
+<h1>{{ location.name }}</h1>
+<ul>
+  {% if location.description %}
+    <li><strong>Description:</strong> {{ location.description }}</li>
+  {% endif %}
+  {% if location.location %}
+    <li><strong>Location:</strong> {{ location.location }}</li>
+  {% endif %}
+  {% if location.start_date %}
+    <li><strong>Start Date:</strong> {{ location.start_date }}</li>
+  {% endif %}
+  {% if location.end_date %}
+    <li><strong>End Date:</strong> {{ location.end_date }}</li>
+  {% endif %}
+
+  <div class="submit-row">
+        <button type="button" class="default" onclick="window.location.href='new_user';">Register for the event</button>
+  </div> 
+
+</ul>
+
+
+
+

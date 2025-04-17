@@ -1,0 +1,6 @@
+<h1>Wifi Network Locations</h1>
+<ul>
+  {% for location in locations %}
+    <li><a href="{% url 'wifi_location_details' location.id %}">{{ location.name }}</a></li>
+  {% endfor %}
+</ul>
