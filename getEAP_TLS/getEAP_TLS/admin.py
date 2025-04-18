@@ -19,10 +19,17 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation"]
     list_filter = ["wifiLocation"]
+
+    def show_qr_button(self, obj:WifiUser):
+        return format_html(
+            '<a class="button" href="{}">Show QR</a>',
+            f"/api/user_qr/{obj.user_uuid}/"
+        )
+
 
     def get_urls(self):
         urls = super().get_urls()
