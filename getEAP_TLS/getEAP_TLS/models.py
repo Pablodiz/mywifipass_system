@@ -65,17 +65,20 @@ class WifiNetworkLocation(models.Model):
     def save(self, *args, **kwargs):
         # Establish default values for start and end dates:
         if not self.start_date:
-            self.start_date = date.today()
+            start_date = date.today()
+        else:
+            start_date = self.start_date
         if not self.end_date:
-            self.end_date = self.start_date + timedelta(days=10*365+2)
-
+            end_date = start_date + timedelta(days=10*365+2)
+        else:
+            end_date = self.end_date
 
         # Create the CA for the certificates
         ca = Ca.objects.create(
             name=f"{self.name}'s CA",
             common_name=self.name,
-            validity_start=self.start_date,
-            validity_end=self.end_date,
+            validity_start=start_date,
+            validity_end=end_date,
         )
 
         self.certificates_CA = ca
