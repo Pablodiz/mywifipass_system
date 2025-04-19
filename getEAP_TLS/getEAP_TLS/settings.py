@@ -27,7 +27,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
 
 # URL configuration 
-BASE_URL = "http://localhost:8000/"
+BASE_URL = "http://192.168.1.69:8000/"
 USER_PATH = "user/" 
 API_PATH = "api/"
 
@@ -122,7 +122,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]  
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

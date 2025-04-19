@@ -1,23 +1,57 @@
-<h1>{{ location.name }}</h1>
-<ul>
-  {% if location.description %}
-    <li><strong>Description:</strong> {{ location.description }}</li>
-  {% endif %}
-  {% if location.location %}
-    <li><strong>Location:</strong> {{ location.location }}</li>
-  {% endif %}
-  {% if location.start_date %}
-    <li><strong>Start Date:</strong> {{ location.start_date }}</li>
-  {% endif %}
-  {% if location.end_date %}
-    <li><strong>End Date:</strong> {{ location.end_date }}</li>
-  {% endif %}
+{% extends 'base.html' %}
 
-  <div class="submit-row">
-        <button type="button" class="default" onclick="window.location.href='new_user';">Register for the event</button>
+{% block breadcrumb %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'events' %}">Events</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ location.name }}</li>
+</ol>
+{% endblock %}
+
+
+{% block content %}
+<div class="event-container">
+  <h1 class="event-title">Casa</h1>
+  
+  <div class="event-details">
+    <ul class="details-list">
+      {% if location.description %}
+      <li>
+        <span class="detail-icon">📝</span>
+        <span class="detail-label">Description:</span> 
+        <span class="detail-value">{{ location.description }}</span>
+      </li>
+      {% endif %}
+      {% if location.location %}
+      <li>
+        <span class="detail-icon">📍</span>
+        <span class="detail-label">Location:</span> 
+        <span class="detail-value">{{ location.location }}</span>
+      </li>
+      {% endif %}
+      {% if location.start_date %}
+      <li>
+        <span class="detail-icon">🗓️</span>
+        <span class="detail-label">Start Date:</span> 
+        <span class="detail-value">March 29, 2025</span>
+      </li>
+      {% endif %}
+      {% if location.end_date %}
+      <li>
+        <span class="detail-icon">🏁</span>
+        <span class="detail-label">End Date:</span> 
+        <span class="detail-value">March 29, 2035</span>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+  
+  <div class="submit-row text-center mb-4">
+    <button type="button" class="my-button" onclick="window.location.href='register';">Register for the event</button>
   </div> 
+</div>
 
-</ul>
+{% endblock %}
+
 
 
 
