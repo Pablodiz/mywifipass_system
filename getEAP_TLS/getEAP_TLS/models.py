@@ -17,29 +17,48 @@ class WifiUser(models.Model):
     certificate = models.ForeignKey(Cert, on_delete=models.SET_NULL, blank=False, null=True)
     user_uuid = models.UUIDField(default=None, blank=True, null=True) 
     certificates_symmetric_key = models.BinaryField(max_length=32, blank=True, null=True)
+    allow_access = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if not self.wifiLocation:
             raise ValueError("WifiLocation is required to create a certificate.")
 
-        # Generate a symmetric key for the certificates
-        self.certificates_symmetric_key = secrets.token_bytes(32)
+        # Generate a UUID for the user if it doesn't exist
+        if not self.user_uuid:
+            self.user_uuid = uuid.uuid4()
+        
+        # Generate a symmetric key for the certificates if it doesn't exist
+        if not self.certificates_symmetric_key:
+            self.certificates_symmetric_key = secrets.token_bytes(32)
 
-        # Get the certificate's CA from the wifi location
-        ca = self.wifiLocation.certificates_CA
+        # Check if the name, id_document, email or wifiLocation changed: 
+        # If any of these fields changed, we need to create a new certificate
+        if self.pk:
+            original = WifiUser.objects.get(pk=self.pk)
+            if (self.name != original.name or
+                self.id_document != original.id_document or
+                self.email != original.email or
+                self.wifiLocation != original.wifiLocation):
+                # If any of these fields changed, we need to create a new certificate
+                self.certificate = None
+                self.allow_access = False
+        
+        # Check if the certificate doesnt exist (the user is new/an important field changed)
+        if not self.certificate:
+            # Get the certificate's CA from the wifi location
+            ca = self.wifiLocation.certificates_CA
 
-        # Create the certificate
-        cert = Cert.objects.create(
-            name=f"{self.name}'s Certificate",
-            ca=ca,
-            common_name=self.name,
-            email=self.email,
-            validity_start=ca.validity_start,
-            validity_end=ca.validity_end,
-        )
+            # Create the certificate
+            cert = Cert.objects.create(
+                name=f"{self.name}'s Certificate",
+                ca=ca,
+                common_name=self.name,
+                email=self.email,
+                validity_start=ca.validity_start,
+                validity_end=ca.validity_end,
+            )
 
-        self.certificate = cert
-        self.user_uuid = uuid.uuid4()
+            self.certificate = cert
         
         super().save(*args, **kwargs)
 
