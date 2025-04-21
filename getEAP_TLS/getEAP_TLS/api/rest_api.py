@@ -15,9 +15,9 @@ import base64
 from rest_framework import serializers
 
 # Use of API TOKEN to configure an endpoint to only be used by authenticated admin users:
-# from rest_framework.permissions import IsAdminUser
-# from rest_framework.decorators import permission_classes
-# Anotate the functio with:  
+from rest_framework.permissions import IsAdminUser
+from rest_framework.decorators import permission_classes
+# Anotate the function with:  
 # @permission_classes([IsAdminUser])
 
 
@@ -177,6 +177,7 @@ class ValidateUserSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"An error occurred: {str(e)}")
         
 @api_view(['POST'])
+@permission_classes([IsAdminUser])
 def validate_user(request, uuid:uuid): 
     """
     Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
