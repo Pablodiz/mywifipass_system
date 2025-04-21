@@ -107,4 +107,23 @@ def user_qr(request, uuid: uuid):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-
+@api_view(['GET'])
+def user_key(request, uuid:uuid):
+    """
+    Handles the HTTP request to retrieve the symmetric key for a WifiUser.
+    
+    Args:
+        request: The HTTP request object.
+        uuid (uuid): The UUID of the WifiUser.
+    
+    Returns:
+        Response: A response containing the symmetric key or an error message.
+    """
+    try:
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        certificates_symmetric_key = user.certificates_symmetric_key.hex()
+        return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
+    except Http404: 
+        return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
