@@ -12,6 +12,13 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
 
+# Use of API TOKEN to configure an endpoint to only be used by authenticated admin users:
+# from rest_framework.permissions import IsAdminUser
+# from rest_framework.decorators import permission_classes
+# Anotate the functio with:  
+# @permission_classes([IsAdminUser])
+
+
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
     if len(clave) != 32:
