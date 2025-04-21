@@ -8,6 +8,22 @@ from getEAP_TLS.models import WifiUser, WifiNetworkLocation
 from getEAP_TLS.settings import BASE_URL, API_PATH, USER_PATH
 from getEAP_TLS.utils import generate_qr_code
 
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import base64
+
+# Cipher AES-256 in ECB mode (without IV)
+def cipher_AES_256_ECB(plaintext: str, clave: bytes):
+    if len(clave) != 32:
+        raise ValueError("Key must be 32 bytes long for AES-256.")
+    text_bytes = plaintext.encode()
+    text_padded = pad(text_bytes, AES.block_size)  # Padding to 32 bytes
+    cipher = AES.new(clave, AES.MODE_ECB)
+    text_cifrado = cipher.encrypt(text_padded)
+    return base64.b64encode(text_cifrado)
+
+
+
 def replace_nulls(obj):
     if isinstance(obj, dict):
         return {k: replace_nulls(v) for k, v in obj.items()}
@@ -26,13 +42,22 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
     Returns:
         json_data: JSON object with the information of the user and the location
     """
+    try: 
+        key = wifiuser.certificates_symmetric_key
+        # Encrypt the certificates with the symmetric key
+        certificate = cipher_AES_256_ECB(wifiuser.certificate.certificate, key)
+        private_key = cipher_AES_256_ECB(wifiuser.certificate.private_key, key)
+        ca_certificate = cipher_AES_256_ECB(wifiNetworkLocation.certificates_CA.certificate, key)
+    except Exception as e:
+        raise ValueError("Error encrypting the certificates: " + str(e))
+
     json_data = {
-        'user_name': wifiuser.certificate.common_name,
-        'user_email': wifiuser.certificate.email,
+        'user_name': wifiuser.name,
+        'user_email': wifiuser.email,
         'user_id_document': wifiuser.id_document,
-        'certificate': wifiuser.certificate.certificate,
-        'private_key': wifiuser.certificate.private_key,
-        'ca_certificate': wifiNetworkLocation.certificates_CA.certificate,    
+        'certificate': certificate,
+        'private_key': private_key,
+        'ca_certificate': ca_certificate,    
         'network_common_name': wifiNetworkLocation.certificates_CA.common_name,
         'ssid': wifiNetworkLocation.SSID,
         'user_uuid': wifiuser.user_uuid,
@@ -41,7 +66,6 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'end_date': wifiNetworkLocation.end_date,
         'description': wifiNetworkLocation.description,
         'location_name': wifiNetworkLocation.name,
-        
     }
     return replace_nulls(json_data)
 
@@ -82,3 +106,5 @@ def user_qr(request, uuid: uuid):
         return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
