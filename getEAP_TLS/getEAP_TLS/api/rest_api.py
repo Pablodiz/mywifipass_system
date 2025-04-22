@@ -42,6 +42,27 @@ def replace_nulls(obj):
         return ""
     return obj
 
+
+def certificates_symmetric_key_url(user_uuid: uuid):
+    """
+    Function to get the URL of the symmetric key of the user
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL of the symmetric key of the user
+    """
+    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/key"
+
+def validation_url(user_uuid: uuid):
+    """
+    Function to get the URL of the validation of the user
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL of the validation of the user
+    """
+    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/validate"
+
 def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
     """ 
     Function to get the information of the user and the location
@@ -75,6 +96,8 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'end_date': wifiNetworkLocation.end_date,
         'description': wifiNetworkLocation.description,
         'location_name': wifiNetworkLocation.name,
+        'validation_url': validation_url(wifiuser.user_uuid),
+        'certificates_symmetric_key_url': certificates_symmetric_key_url(wifiuser.user_uuid),
     }
     return replace_nulls(json_data)
 
