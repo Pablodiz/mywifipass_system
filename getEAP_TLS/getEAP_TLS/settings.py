@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django_x509',
     'getEAP_TLS',
     'rest_framework',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -77,6 +78,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'getEAP_TLS.wsgi.application'
 
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # Asegúrate de que esté esto
+    ],
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

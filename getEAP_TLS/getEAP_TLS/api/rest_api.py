@@ -12,6 +12,15 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
 
+from rest_framework import serializers
+
+# Use of API TOKEN to configure an endpoint to only be used by authenticated admin users:
+from rest_framework.permissions import IsAdminUser
+from rest_framework.decorators import permission_classes
+# Anotate the function with:  
+# @permission_classes([IsAdminUser])
+
+
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
     if len(clave) != 32:
@@ -55,12 +64,12 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'user_name': wifiuser.name,
         'user_email': wifiuser.email,
         'user_id_document': wifiuser.id_document,
+        'user_uuid': wifiuser.user_uuid,
         'certificate': certificate,
         'private_key': private_key,
         'ca_certificate': ca_certificate,    
         'network_common_name': wifiNetworkLocation.certificates_CA.common_name,
         'ssid': wifiNetworkLocation.SSID,
-        'user_uuid': wifiuser.user_uuid,
         'location': wifiNetworkLocation.location,
         'start_date': wifiNetworkLocation.start_date,
         'end_date': wifiNetworkLocation.end_date,
@@ -121,8 +130,78 @@ def user_key(request, uuid:uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        certificates_symmetric_key = user.certificates_symmetric_key.hex()
-        return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
+        if user.allow_access:
+            certificates_symmetric_key = user.certificates_symmetric_key.hex()
+            return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
+        else: 
+            # If the user is not allowed access, no password is return, instead we return a 403 Forbidden response
+            return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
+    except Http404: 
+        return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ValidateUserSerializer(serializers.Serializer):
+    """
+    Serializer for validating a WifiUser.
+    """
+    user_uuid = serializers.UUIDField(required=True)
+    user_name = serializers.CharField(required=True)
+    user_email = serializers.EmailField(required=True)
+    user_id_document = serializers.CharField(required=True)
+
+    def validate(self, data):
+        """
+        Validate the user.
+        """
+        user_uuid = data.get('user_uuid')
+        user_name = data.get('user_name')
+        user_email = data.get('user_email')
+        user_id_document = data.get('user_id_document')
+
+        try:
+            user = WifiUser.objects.get(
+                user_uuid=user_uuid,
+                name=user_name,
+                email=user_email,
+                id_document=user_id_document
+            )
+            if user:
+                return data
+            else:
+                raise serializers.ValidationError("User is not valid.")
+        except WifiUser.DoesNotExist:
+            raise serializers.ValidationError("User does not exist.")
+        except Exception as e:
+            raise serializers.ValidationError(f"An error occurred: {str(e)}")
+        
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def validate_user(request, uuid:uuid): 
+    """
+    Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
+    
+    Args:
+        request: The HTTP request object.
+        
+        uuid (uuid): The UUID of the WifiUser.
+    
+    Returns:
+        Response: A response indicating whether the user is valid or not.
+    """
+    try:
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        request_data = request.data 
+        serializer = ValidateUserSerializer(data=request_data)
+        if serializer.is_valid():
+            user.allow_access = True
+            user.save()
+            return Response({'message': 'User is valid and access is allowed.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    except serializers.ValidationError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Http404: 
         return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
