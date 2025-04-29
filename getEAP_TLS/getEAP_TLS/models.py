@@ -20,6 +20,7 @@ class WifiUser(models.Model):
     allow_access = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
+        from getEAP_TLS.utils import send_mail # Import here to avoid circular import
         if not self.wifiLocation:
             raise ValueError("WifiLocation is required to create a certificate.")
 
@@ -59,6 +60,7 @@ class WifiUser(models.Model):
             )
 
             self.certificate = cert
+            send_mail(self)
         
         super().save(*args, **kwargs)
 
