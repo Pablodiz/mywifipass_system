@@ -7,7 +7,6 @@ import uuid
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
 from getEAP_TLS.settings import BASE_URL, API_PATH, USER_PATH
 from getEAP_TLS.utils import generate_qr_code
-
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
@@ -20,6 +19,26 @@ from rest_framework.decorators import permission_classes
 # Anotate the function with:  
 # @permission_classes([IsAdminUser])
 
+
+def user_url (user_uuid):
+    """
+    Function to get the URL of the user
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL of the user
+    """
+    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/"
+
+def user_qr_url (user_uuid):
+    """
+    Function to get the URL of the user QR code
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL of the user QR code
+    """
+    return BASE_URL + API_PATH + "user_qr/" + str(user_uuid) + "/"
 
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
@@ -51,7 +70,7 @@ def certificates_symmetric_key_url(user_uuid: uuid):
     Returns:
         url: URL of the symmetric key of the user
     """
-    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/key"
+    return user_url(user_uuid) + "/key"
 
 def validation_url(user_uuid: uuid):
     """
@@ -61,7 +80,7 @@ def validation_url(user_uuid: uuid):
     Returns:
         url: URL of the validation of the user
     """
-    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/validate"
+    return user_url(user_uuid) + "/validate"
 
 def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
     """ 
@@ -127,7 +146,7 @@ def user_qr(request, uuid: uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        url = BASE_URL + API_PATH + USER_PATH + str(user.user_uuid) + "/"
+        url = user_url(user.user_uuid)
         buffer = generate_qr_code(url)
         
         # Return the binary stream as a FileResponse

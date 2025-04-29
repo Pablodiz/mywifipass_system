@@ -21,7 +21,7 @@ class WifiUserAdmin(ModelAdmin):
     """
     list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
-    fields = ["name", "email","id_document", "wifiLocation"]
+    fields = ["name", "email","id_document", "wifiLocation", "allow_access"]
     list_filter = ["wifiLocation"]
 
     def show_qr_button(self, obj:WifiUser):
