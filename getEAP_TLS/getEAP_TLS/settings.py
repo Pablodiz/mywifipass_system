@@ -80,13 +80,19 @@ REST_FRAMEWORK = {
     ],
 }
 
+env_path = '/djangox509/our_mysql/config.env'
+config = Config(RepositoryEnv(env_path))
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'getEAP_TLS.db',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('MYSQL_DATABASE', default="getEAP_TLS"),
+        'USER': config('MYSQL_USER', default="root"),
+        'PASSWORD': config('MYSQL_PASSWORD', default=""),
+        'HOST': config('MYSQL_SERVER', default="localhost"),
     }
 }
 
