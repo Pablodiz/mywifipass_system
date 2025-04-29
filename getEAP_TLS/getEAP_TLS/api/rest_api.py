@@ -28,7 +28,7 @@ def user_url (user_uuid):
     Returns:
         url: URL of the user
     """
-    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/"
+    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) 
 
 def user_qr_url (user_uuid):
     """
@@ -38,7 +38,7 @@ def user_qr_url (user_uuid):
     Returns:
         url: URL of the user QR code
     """
-    return BASE_URL + API_PATH + "user_qr/" + str(user_uuid) + "/"
+    return BASE_URL + API_PATH + "user_qr/" + str(user_uuid) 
 
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
