@@ -6,7 +6,7 @@ from django.urls import path
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render
 
-from getEAP_TLS.radius.radius_certs import export_wifi_location_certificates
+#from getEAP_TLS.radius.radius_certs import export_wifi_location_certificates
 from django_x509.models import Cert, Ca
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
 
@@ -85,35 +85,35 @@ class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiNetworkLocation model
     """
-    list_display = ["name", "SSID", "location", "start_date", "end_date", "export_certificates_button"]
+    list_display = ["name", "SSID", "location", "start_date", "end_date"]#, "export_certificates_button"]
     search_fields = ["name", "SSID", "description", "location"]
     fields = ["name", "SSID", "description", "location", "start_date", "end_date"]
 
-    def export_certificates_button(self, obj):
-        return format_html(
-            '<a class="button" href="{}">Export Certificates</a>',
-            f"export_certificates/{obj.id}/"
-        )
+    # def export_certificates_button(self, obj):
+    #     return format_html(
+    #         '<a class="button" href="{}">Export Certificates</a>',
+    #         f"export_certificates/{obj.id}/"
+    #     )
 
-    export_certificates_button.short_description = "Export Certificates"
-    export_certificates_button.allow_tags = True
+    # export_certificates_button.short_description = "Export Certificates"
+    # export_certificates_button.allow_tags = True
 
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path('export_certificates/<int:wifi_location_id>/', self.admin_site.admin_view(self.export_certificates), name="export_wifi_certificates"),
-        ]
-        return custom_urls + urls
+    # def get_urls(self):
+    #     urls = super().get_urls()
+    #     custom_urls = [
+    #         path('export_certificates/<int:wifi_location_id>/', self.admin_site.admin_view(self.export_certificates), name="export_wifi_certificates"),
+    #     ]
+    #     return custom_urls + urls
 
-    def export_certificates(self, request, wifi_location_id):
-        try:
-            export_wifi_location_certificates(wifi_location_id)
-            self.message_user(request, "Certificates exported successfully.")
-        except ObjectDoesNotExist:
-            self.message_user(request, "Wifi location not found.", level="error")
-        except Exception as e:
-            self.message_user(request, f"Error: {e}", level="error")
-        return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
+    # def export_certificates(self, request, wifi_location_id):
+    #     try:
+    #         export_wifi_location_certificates(wifi_location_id)
+    #         self.message_user(request, "Certificates exported successfully.")
+    #     except ObjectDoesNotExist:
+    #         self.message_user(request, "Wifi location not found.", level="error")
+    #     except Exception as e:
+    #         self.message_user(request, f"Error: {e}", level="error")
+    #     return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
 
     
 

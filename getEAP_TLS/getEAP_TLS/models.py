@@ -88,6 +88,7 @@ class WifiNetworkLocation(models.Model):
     radius_Certificate = models.ForeignKey(Cert, on_delete=models.SET_NULL, blank=False, null=True)
 
     def save(self, *args, **kwargs):
+        from getEAP_TLS.radius.radius_certs import export_certificates # Import here to avoid circular import
         # Establish default values for start and end dates:
         if not self.start_date:
             start_date = date.today()
@@ -98,26 +99,30 @@ class WifiNetworkLocation(models.Model):
         else:
             end_date = self.end_date
 
-        # Create the CA for the certificates
-        ca = Ca.objects.create(
-            name=f"{self.name}'s CA",
-            common_name=self.name,
-            validity_start=start_date,
-            validity_end=end_date,
-        )
+        if not self.certificates_CA:
+            # Create the CA for the certificates
+            ca = Ca.objects.create(
+                name=f"{self.name}'s CA",
+                common_name=self.name,
+                validity_start=start_date,
+                validity_end=end_date,
+            )
 
-        self.certificates_CA = ca
+            self.certificates_CA = ca
 
-        # Create the radius certificate
-        radius_cert = Cert.objects.create(
-            name=f"{self.name}'s Radius Certificate",
-            ca=ca,
-            common_name=self.name,
-            validity_start=ca.validity_start,
-            validity_end=ca.validity_end,
-        )
+        if not self.radius_Certificate:
+            # Create the radius certificate
+            radius_cert = Cert.objects.create(
+                name=f"{self.name}'s Radius Certificate",
+                ca=ca,
+                common_name=self.name,
+                validity_start=ca.validity_start,
+                validity_end=ca.validity_end,
+            )
 
-        self.radius_Certificate = radius_cert
+            self.radius_Certificate = radius_cert
+
+        export_certificates(self)
         super().save(*args, **kwargs)
 
     def __str__(self):
