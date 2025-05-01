@@ -1,0 +1,23 @@
+server __SSID__ {
+    authorize {
+        preprocess
+        eap___SSID__ {
+            ok = return
+        }
+        files
+    }
+
+    authenticate {
+        Auth-Type eap___SSID__ {
+            eap___SSID__
+        }
+        acct_unique
+    }
+
+    post-auth {
+        Post-Auth-Type REJECT {
+            attr_filter.access_reject
+            eap___SSID__
+        }
+    }
+}
