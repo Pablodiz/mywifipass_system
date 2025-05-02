@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 from pathlib import Path
+from decouple import Config, RepositoryEnv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,12 +26,6 @@ SECRET_KEY = 'django-insecure-_#y6!8g^9uvy&uszqgwky)o59inz&-!y0cnb%#d_-1b969x0j)
 DEBUG = True
 
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
-
-# URL configuration 
-BASE_URL = "http://192.168.1.69:8000/"
-USER_PATH = "user/" 
-API_PATH = "api/"
-
 
 # Application definition
 
@@ -85,13 +80,19 @@ REST_FRAMEWORK = {
     ],
 }
 
+env_path = '/djangox509/our_mysql/config.env'
+config = Config(RepositoryEnv(env_path))
+
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'getEAP_TLS.db',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('MYSQL_DATABASE', default="getEAP_TLS"),
+        'USER': config('MYSQL_USER', default="root"),
+        'PASSWORD': config('MYSQL_PASSWORD', default=""),
+        'HOST': config('MYSQL_SERVER', default="localhost"),
     }
 }
 
@@ -136,3 +137,20 @@ STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+env_path = './enviroment.env'
+config = Config(RepositoryEnv(env_path))
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = config('EMAIL_HOST', default="smtp.gmail.com")
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') 
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# URL configuration 
+BASE_URL = config('BASE_URL', default="http://localhost:8000/")
+USER_PATH = "user/" 
+API_PATH = "api/"

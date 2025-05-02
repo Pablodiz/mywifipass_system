@@ -1,4 +1,4 @@
-eap {
+eap eap___SSID__ {
 	default_eap_type = tls
 	timer_expire = 60
 	dedup_key = "%{Calling-Station-Id}"
@@ -7,9 +7,9 @@ eap {
 	max_sessions = ${max_requests}
 	
 	tls-config tls-common {
-		private_key_file = /etc/raddb/server_certs/server.key
-		certificate_file = /etc/raddb/server_certs/server.pem
-		ca_file = /etc/raddb/server_certs/ca.pem
+		private_key_file = /etc/raddb/server_certs/__SSID__/server.key
+		certificate_file = /etc/raddb/server_certs/__SSID__/server.pem
+		ca_file = /etc/raddb/server_certs/__SSID__/ca.pem
 		ca_path = /etc/raddb/server_certs/
 		ca_path_reload_interval = 3600
 		auto_chain = yes

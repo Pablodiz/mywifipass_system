@@ -2,7 +2,8 @@ from django.db import models
 from datetime import date, timedelta
 from django_x509.models import Cert, Ca
 import uuid, secrets
-
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 class WifiUser(models.Model):
     """
     Model that represents a user that will be granted access to a wifi network
@@ -20,6 +21,7 @@ class WifiUser(models.Model):
     allow_access = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
+        from getEAP_TLS.utils import send_mail # Import here to avoid circular import
         if not self.wifiLocation:
             raise ValueError("WifiLocation is required to create a certificate.")
 
@@ -59,6 +61,7 @@ class WifiUser(models.Model):
             )
 
             self.certificate = cert
+            send_mail(self)
         
         super().save(*args, **kwargs)
 
@@ -86,6 +89,7 @@ class WifiNetworkLocation(models.Model):
     radius_Certificate = models.ForeignKey(Cert, on_delete=models.SET_NULL, blank=False, null=True)
 
     def save(self, *args, **kwargs):
+        from getEAP_TLS.radius.radius_certs import export_certificates # Import here to avoid circular import
         # Establish default values for start and end dates:
         if not self.start_date:
             start_date = date.today()
@@ -96,27 +100,41 @@ class WifiNetworkLocation(models.Model):
         else:
             end_date = self.end_date
 
-        # Create the CA for the certificates
-        ca = Ca.objects.create(
-            name=f"{self.name}'s CA",
-            common_name=self.name,
-            validity_start=start_date,
-            validity_end=end_date,
-        )
+        if not self.certificates_CA:
+            # Create the CA for the certificates
+            ca = Ca.objects.create(
+                name=f"{self.name}'s CA",
+                common_name=self.name,
+                validity_start=start_date,
+                validity_end=end_date,
+            )
 
-        self.certificates_CA = ca
+            self.certificates_CA = ca
 
-        # Create the radius certificate
-        radius_cert = Cert.objects.create(
-            name=f"{self.name}'s Radius Certificate",
-            ca=ca,
-            common_name=self.name,
-            validity_start=ca.validity_start,
-            validity_end=ca.validity_end,
-        )
+        if not self.radius_Certificate:
+            # Create the radius certificate
+            radius_cert = Cert.objects.create(
+                name=f"{self.name}'s Radius Certificate",
+                ca=ca,
+                common_name=self.name,
+                validity_start=ca.validity_start,
+                validity_end=ca.validity_end,
+            )
 
-        self.radius_Certificate = radius_cert
+            self.radius_Certificate = radius_cert
+
+        export_certificates(self)
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
+    
+
+
+
+@receiver(post_delete, sender=WifiNetworkLocation)
+def signal_function_name(sender, instance, using, **kwargs):
+    from getEAP_TLS.radius.radius_certs import mark_ssid_for_deletion # Import here to avoid circular import
+    instance.radius_Certificate.delete()
+    instance.certificates_CA.delete()
+    mark_ssid_for_deletion(instance)

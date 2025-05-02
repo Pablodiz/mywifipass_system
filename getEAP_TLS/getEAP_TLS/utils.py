@@ -1,5 +1,8 @@
 import qrcode
 from io import BytesIO 
+from getEAP_TLS.models import WifiUser
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 
 def generate_qr_code(data: str) -> BytesIO:
     """
@@ -21,3 +24,23 @@ def generate_qr_code(data: str) -> BytesIO:
     img.save(buffer, format="PNG")
     buffer.seek(0)  # Reset the buffer pointer to the beginning
     return buffer
+
+
+def send_mail(user: WifiUser):
+    from getEAP_TLS.api.rest_api import user_qr_url, user_url # Import here to avoid circular import
+    html_content = render_to_string(
+        "getEAP_TLS/email/register_email.html",
+        context={
+            "location": user.wifiLocation.name, 
+            "qr_code_url": user_qr_url(user.user_uuid),
+            "pass_url": user_url(user.user_uuid)      
+        },
+    )
+    mail = EmailMultiAlternatives(
+        subject="Your registration for the event: " + user.wifiLocation.name,
+        body="",
+        from_email=None, 
+        to=[user.email],
+    )
+    mail.attach_alternative(html_content, "text/html")
+    mail.send()

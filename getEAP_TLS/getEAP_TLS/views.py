@@ -3,7 +3,6 @@ from getEAP_TLS.forms import WifiUserForm
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 
-
 def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
     return render(request, "getEAP_TLS/wifilocation/wifi_network_locations_list.html", {"locations": locations})

@@ -2,3 +2,5 @@ djangorestframework
 qrcode
 pillow
 pycryptodome
+python-decouple
+mysqlclient
