@@ -19,10 +19,11 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "user_uuid", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "allow_access"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation", "allow_access"]
     list_filter = ["wifiLocation"]
+    list_editable = ["allow_access"]
 
     def show_qr_button(self, obj:WifiUser):
         return format_html(
@@ -75,6 +76,7 @@ class WifiUserAdmin(ModelAdmin):
             'title': "Import WifiUsers from CSV",
         }
         return render(request, "admin/csv_form.html", context)
+    
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['custom_button'] = {
