@@ -17,7 +17,7 @@ EOF
 
 if [ "$1" == "run" ]; then
     echo "running server"
-    python3 manage.py runserver 0.0.0.0:8000
+    exec python3 manage.py runserver 0.0.0.0:8000
 else 
     echo "waiting for your conection"
     sleep infinity 
