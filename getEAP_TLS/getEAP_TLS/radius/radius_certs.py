@@ -4,6 +4,7 @@ from getEAP_TLS.models import WifiNetworkLocation
 # Export directory
 RADIUS_PENDING_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/pending"
 RADIUS_PROCESSED_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/processed"
+RADIUS_DELETION_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/deletion"
 
 def export_certificates(wifiLocation: WifiNetworkLocation):
     """
@@ -35,3 +36,13 @@ def export_certificates(wifiLocation: WifiNetworkLocation):
     with open(ca_path, 'w') as ca_file:
         ca_file.write(wifiLocation.certificates_CA.certificate)
 
+
+def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
+    """
+    Marks an SSID for deletion by creating a file with its name in the deletion directory.
+    """
+    ssid_path = os.path.join(RADIUS_DELETION_CERT_DIR, f'{wifiLocation.SSID}')
+
+    # We create a file with the SSID name in the deletion directory
+    with open(ssid_path, 'w') as ssid_file:
+        ssid_file.write(wifiLocation.SSID)

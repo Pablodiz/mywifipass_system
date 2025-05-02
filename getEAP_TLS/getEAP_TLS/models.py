@@ -2,7 +2,8 @@ from django.db import models
 from datetime import date, timedelta
 from django_x509.models import Cert, Ca
 import uuid, secrets
-
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 class WifiUser(models.Model):
     """
     Model that represents a user that will be granted access to a wifi network
@@ -127,3 +128,13 @@ class WifiNetworkLocation(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+
+@receiver(post_delete, sender=WifiNetworkLocation)
+def signal_function_name(sender, instance, using, **kwargs):
+    from getEAP_TLS.radius.radius_certs import mark_ssid_for_deletion # Import here to avoid circular import
+    instance.radius_Certificate.delete()
+    instance.certificates_CA.delete()
+    mark_ssid_for_deletion(instance)
