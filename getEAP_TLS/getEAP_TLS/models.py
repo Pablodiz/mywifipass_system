@@ -67,6 +67,17 @@ class WifiUser(models.Model):
 
     def __str__(self):
         return self.name
+    
+    def revoke_certificate(self):
+        """
+        Revoke the certificate and mark the user as not allowed to access the wifi network
+        """
+        if self.certificate:
+            self.certificate.revoke()
+            self.allow_access = False
+            self.save()
+        else:
+            raise ValueError("Certificate does not exist for this user.")
 
 
 class WifiNetworkLocation(models.Model):
