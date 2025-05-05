@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.http import Http404, FileResponse
+from django.http import Http404, FileResponse, HttpResponse
 import uuid
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
 from getEAP_TLS.settings import BASE_URL, API_PATH, USER_PATH
@@ -10,7 +10,6 @@ from getEAP_TLS.utils import generate_qr_code
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
-
 from rest_framework import serializers
 
 # Use of API TOKEN to configure an endpoint to only be used by authenticated admin users:
@@ -248,3 +247,29 @@ def validate_user(request, uuid:uuid):
         return Response({'error': 'User with id ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def show_crl(request, id:int):
+    """
+    Handles the HTTP request to show the Certificate Revocation List (CRL) of an event.
+    
+    Args:
+        request: The HTTP request object.
+    
+    Returns:
+        Response: A response containing the CRL or an error message.
+    """
+    try:
+        event = get_object_or_404(WifiNetworkLocation, id=id)
+        crl = event.certificates_CA.crl
+        if crl:
+            crl_text = crl.decode('utf-8')
+            print(crl_text)
+            return HttpResponse(crl_text, content_type="text/plain", status=status.HTTP_200_OK) # We use an HttpResponse to return the CRL as a text file
+        else:
+            return Response({'error': 'No CRL found for this event.'}, status=status.HTTP_404_NOT_FOUND)
+    except Http404:
+        return Response({'error': 'Event with id ' + str(id) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
