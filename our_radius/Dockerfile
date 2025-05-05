@@ -2,12 +2,12 @@ FROM freeradius/freeradius-server:latest
 
 
 # Config files
-COPY ./eap-template /etc/raddb/mods-available/eap-template
-COPY ./server-template /etc/raddb/sites-available/server-template
-COPY ./default /etc/raddb/sites-enabled/default
-COPY ./clients.conf.template /etc/raddb/clients.conf.template
-COPY ./cron /etc/cron.d/cron
-COPY ./process_ssids.sh ./create_ssids.sh ./remove_ssids.sh /usr/local/bin/
+COPY ./config/eap-template /etc/raddb/mods-available/eap-template
+COPY ./config/server-template /etc/raddb/sites-available/server-template
+COPY ./config/default /etc/raddb/sites-enabled/default
+COPY ./config/clients.conf.template /etc/raddb/clients.conf.template
+COPY ./config/cron /etc/cron.d/cron
+COPY ./config/process_ssids.sh ./config/create_ssids.sh ./config/remove_ssids.sh /usr/local/bin/
 
 RUN apt-get update &&   \
     # We install envsubst
