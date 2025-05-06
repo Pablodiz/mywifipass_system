@@ -9,9 +9,7 @@ eap eap___SSID__ {
 	tls-config tls-common {
 		private_key_file = /etc/raddb/server_certs/__SSID__/server.key
 		certificate_file = /etc/raddb/server_certs/__SSID__/server.pem
-		ca_file = /etc/raddb/server_certs/__SSID__/ca.pem
-		ca_path = /etc/raddb/server_certs/
-		ca_path_reload_interval = 3600
+		ca_path = /etc/raddb/server_certs/__SSID__/ca
 		auto_chain = yes
 		cipher_list = "DEFAULT"
 		cipher_server_preference = no

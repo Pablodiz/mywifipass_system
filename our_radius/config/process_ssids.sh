@@ -27,7 +27,12 @@ for SSID_DIR in "$PENDING_DIR"/*/; do
   # Create destination directory
   DEST_DIR="$BASE_DIR/$SSID"
   mkdir -p "$DEST_DIR"
-  cp "$SSID_DIR/"*.pem "$DEST_DIR/" # Copy CA and server certs
+  CA_DIR="$DEST_DIR/ca"
+  mkdir -p "$CA_DIR"
+  cp "$SSID_DIR/"server.pem "$DEST_DIR/" # Copy server cert 
+  cp "$SSID_DIR/"ca.pem "$CA_DIR/" # Copy CA cert to ca_path
+  cp "$SSID_DIR/"crl.pem "$CA_DIR/" # Copy CA cert to ca_path
+  c_rehash "$CA_DIR" # Rehash the CA directory
   cp "$SSID_DIR/"*.key "$DEST_DIR/" # Copy server key
 
   # Execute the script to create the SSID in freeradius
