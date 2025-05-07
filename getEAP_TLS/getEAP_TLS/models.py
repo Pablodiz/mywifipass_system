@@ -13,6 +13,9 @@ class MyCustomCA(AbstractCa):
     """
     Custom CA class to add crlDistributionPoints extension and correct serial number format
     """
+    class Meta(AbstractCa.Meta):
+        abstract = False
+        swappable = swapper.swappable_setting('getEAP_TLS', 'MyCustomCA')
 
     def __init__(self, *args, **kwargs):
         self.crl_dp_url = None  # default value
@@ -32,10 +35,6 @@ class MyCustomCA(AbstractCa):
         ])
 
         return cert
-    class Meta(AbstractCa.Meta):
-        abstract = False
-        swappable = swapper.swappable_setting('getEAP_TLS', 'MyCustomCA')
-
     
     @property
     def crl(self):
@@ -143,10 +142,13 @@ class WifiUser(models.Model):
         """
         Revoke the certificate and mark the user as not allowed to access the wifi network
         """
+        from getEAP_TLS.radius.radius_certs import mark_ssid_to_update_crl # Import here to avoid circular import
         if self.certificate:
             self.certificate.revoke()
             self.allow_access = False
             self.save()
+            # Export the new CRL
+            mark_ssid_to_update_crl(self.wifiLocation)
         else:
             raise ValueError("Certificate does not exist for this user.")
 

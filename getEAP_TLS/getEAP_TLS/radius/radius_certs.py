@@ -5,6 +5,7 @@ from getEAP_TLS.models import WifiNetworkLocation
 RADIUS_PENDING_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/pending"
 RADIUS_PROCESSED_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/processed"
 RADIUS_DELETION_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/deletion"
+RADIUS_UPDATE_CRL = "/djangox509/getEAP_TLS/server_certs/update_crl"
 
 def export_certificates(wifiLocation: WifiNetworkLocation):
     """
@@ -26,6 +27,7 @@ def export_certificates(wifiLocation: WifiNetworkLocation):
     cert_path = os.path.join(ssid_path, f'server.pem')
     key_path = os.path.join(ssid_path, f'server.key')
     ca_path = os.path.join(ssid_path, f'ca.pem')
+    crl_path = os.path.join(ssid_path, f'crl.pem') # It will be empty but it must exist
     
     with open(key_path, 'w') as key_file:
         key_file.write(wifiLocation.radius_Certificate.private_key)
@@ -35,7 +37,9 @@ def export_certificates(wifiLocation: WifiNetworkLocation):
 
     with open(ca_path, 'w') as ca_file:
         ca_file.write(wifiLocation.certificates_CA.certificate)
-
+    
+    with open(crl_path, 'w') as crl_file:
+        crl_file.write(wifiLocation.certificates_CA.crl.decode('utf-8'))
 
 def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
     """
@@ -44,5 +48,15 @@ def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
     ssid_path = os.path.join(RADIUS_DELETION_CERT_DIR, f'{wifiLocation.SSID}')
 
     # We create a file with the SSID name in the deletion directory
+    with open(ssid_path, 'w') as ssid_file:
+        ssid_file.write(wifiLocation.SSID)
+
+def mark_ssid_to_update_crl(wifiLocation: WifiNetworkLocation):
+    """
+    Marks an SSID for update CRL by creating a file with its name in the deletion directory.
+    """
+    ssid_path = os.path.join(RADIUS_UPDATE_CRL, f'{wifiLocation.SSID}')
+
+    # We create a file with the SSID name in the update_crl directory
     with open(ssid_path, 'w') as ssid_file:
         ssid_file.write(wifiLocation.SSID)
