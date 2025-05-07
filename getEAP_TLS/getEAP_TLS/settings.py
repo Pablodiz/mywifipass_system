@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 from pathlib import Path
 from decouple import Config, RepositoryEnv
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,13 +20,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-_#y6!8g^9uvy&uszqgwky)o59inz&-!y0cnb%#d_-1b969x0j)'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["0.0.0.0", "*"]
 
 # Application definition
 
@@ -51,6 +45,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'getEAP_TLS.urls'
@@ -131,6 +126,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles" 
 STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]  
 
 # Default primary key field type
@@ -138,7 +134,7 @@ STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-env_path = './enviroment.env'
+env_path = './config.env'
 config = Config(RepositoryEnv(env_path))
 
 # Email settings
@@ -154,3 +150,20 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 BASE_URL = config('BASE_URL', default="http://localhost:8000/")
 USER_PATH = "user/" 
 API_PATH = "api/"
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# If the secret key is defined we use it, if not we generate a new one and add it to the .env file
+try:
+    secret_key = config("DJANGO_SECRET_KEY")
+except:
+    secret = get_random_secret_key()
+    with open(env_path, "a") as f:
+        f.write(f"\n{"DJANGO_SECRET_KEY"}={secret}\n")
+    secret_key = secret
+
+SECRET_KEY = secret_key
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+ALLOWED_HOSTS = ["0.0.0.0", "*"]
