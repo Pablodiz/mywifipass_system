@@ -27,7 +27,12 @@ for SSID_DIR in "$PENDING_DIR"/*/; do
   # Create destination directory
   DEST_DIR="$BASE_DIR/$SSID"
   mkdir -p "$DEST_DIR"
-  cp "$SSID_DIR/"*.pem "$DEST_DIR/" # Copy CA and server certs
+  CA_DIR="$DEST_DIR/ca"
+  mkdir -p "$CA_DIR"
+  cp "$SSID_DIR/"server.pem "$DEST_DIR/" # Copy server cert 
+  cp "$SSID_DIR/"ca.pem "$CA_DIR/" # Copy CA cert to ca_path
+  cp "$SSID_DIR/"crl.pem "$CA_DIR/" # Copy CA cert to ca_path
+  c_rehash "$CA_DIR" # Rehash the CA directory
   cp "$SSID_DIR/"*.key "$DEST_DIR/" # Copy server key
 
   # Execute the script to create the SSID in freeradius
@@ -61,6 +66,28 @@ for SSID in "$DELETION_DIR"/*; do
   rm $DELETION_DIR/$SSID_NAME # Remove the deletion file
 
   echo "Deleted SSID $SSID_NAME" >> "$LOG_DIR/$SSID_NAME.log"
+  CHANGES=1
+done
+
+UPDATE_CRL_DIR="$BASE_DIR/update_crl"
+for SSID in "$UPDATE_CRL_DIR"/*; do
+  [ -f "$SSID" ] || continue
+  SSID_NAME=$(basename "$SSID")
+  echo "#################################### UPDATING CRL" >> "$LOG_DIR/$SSID_NAME.log"
+  echo "Processing CRL update for: $SSID_NAME" >> "$LOG_DIR/$SSID_NAME.log"
+
+  # Actualizar la CRL en el directorio correspondiente
+  DEST_DIR="$BASE_DIR/$SSID_NAME/ca"
+  if [ -d "$DEST_DIR" ]; then
+      /usr/local/bin/update_crl.sh "$SSID_NAME" >> "$LOG_DIR/$SSID_NAME.log" 2>&1
+      echo "Updated CRL for SSID $SSID_NAME" >> "$LOG_DIR/$SSID_NAME.log"
+  else
+      echo "$DEST_DIR not found" >> "$LOG_DIR/$SSID_NAME.log"
+  fi
+  
+  # Eliminar el archivo de la carpeta update_crl
+  rm "$UPDATE_CRL_DIR/$SSID_NAME"
+  echo "Processed CRL update for $SSID_NAME" >> "$LOG_DIR/$SSID_NAME.log"
   CHANGES=1
 done
 

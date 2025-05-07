@@ -10,4 +10,5 @@ urlpatterns = [
     path(USER_PATH + "<uuid:uuid>/key", rest_api.user_key, name='user-key'),
     path('api-token-auth/', views.obtain_auth_token, name = 'api-token-auth'),
     path(USER_PATH + "<uuid:uuid>/validate", rest_api.validate_user, name='validate-user'),
+    path("events/<int:id>/crl", rest_api.show_crl, name='event-crl'),
 ]

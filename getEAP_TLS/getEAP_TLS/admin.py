@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.utils.html import format_html
 from django.urls import path
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 
 #from getEAP_TLS.radius.radius_certs import export_wifi_location_certificates
 from django_x509.models import Cert, Ca
@@ -19,7 +19,7 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "allow_access"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "allow_access", "revoke_certificate_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation", "allow_access"]
     list_filter = ["wifiLocation"]
@@ -27,15 +27,31 @@ class WifiUserAdmin(ModelAdmin):
 
     def show_qr_button(self, obj:WifiUser):
         return format_html(
-            '<a class="button" href="{}">Show QR</a>',
+            '<a class="button" style="display: inline-block;text-align: center" href="{}">Show QR</a>',
             f"/api/user_qr/{obj.user_uuid}/"
         )
+    
+    def revoke_certificate_button(self, obj: WifiUser):
+        if obj.certificate: 
+            if obj.certificate.revoked:
+                return format_html(
+                    '<a class="button" style="display: inline-block;text-align: center" disabled>Certificate revoked</button>'
+                )
+            else:
+                url = f"/admin/getEAP_TLS/wifiuser/{obj.user_uuid}/revoke_certificate/"
+                return format_html(
+                    '<a class="button" style="display: inline-block;text-align: center" href="{}">Revoke Certificate</a>',
+                    url
+                )
+        else: 
+            return format_html('<a class="button" style="display: inline-block;text-align: center" disabled>No Certificate</button>')
 
 
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
             path('import_csv/', self.admin_site.admin_view(self.import_csv), name="import_wifi_users"),
+            path('<uuid:uuid>/revoke_certificate/',self.admin_site.admin_view(self.revoke_certificate_view), name='revoke-certificate')            
         ]
         return custom_urls + urls
 
@@ -83,43 +99,27 @@ class WifiUserAdmin(ModelAdmin):
             'url': 'import_csv/',
         }
         return super().changelist_view(request, extra_context=extra_context)
+
+
+    revoke_certificate_button.short_description = "Revoke Certificate"
+
+    def revoke_certificate_view(self, request, uuid):
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        try:
+            user.revoke_certificate()
+            print("done donete")
+            self.message_user(request, f"Certificate for user '{user.name}' has been revoked.", messages.SUCCESS)
+        except ValueError as e:
+            self.message_user(request, str(e), messages.ERROR)
+        return redirect(f"/admin/getEAP_TLS/wifiuser/")       
+    
 class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiNetworkLocation model
     """
-    list_display = ["name", "SSID", "location", "start_date", "end_date"]#, "export_certificates_button"]
+    list_display = ["name", "SSID", "location", "start_date", "end_date"]
     search_fields = ["name", "SSID", "description", "location"]
     fields = ["name", "SSID", "description", "location", "start_date", "end_date"]
-
-    # def export_certificates_button(self, obj):
-    #     return format_html(
-    #         '<a class="button" href="{}">Export Certificates</a>',
-    #         f"export_certificates/{obj.id}/"
-    #     )
-
-    # export_certificates_button.short_description = "Export Certificates"
-    # export_certificates_button.allow_tags = True
-
-    # def get_urls(self):
-    #     urls = super().get_urls()
-    #     custom_urls = [
-    #         path('export_certificates/<int:wifi_location_id>/', self.admin_site.admin_view(self.export_certificates), name="export_wifi_certificates"),
-    #     ]
-    #     return custom_urls + urls
-
-    # def export_certificates(self, request, wifi_location_id):
-    #     try:
-    #         export_wifi_location_certificates(wifi_location_id)
-    #         self.message_user(request, "Certificates exported successfully.")
-    #     except ObjectDoesNotExist:
-    #         self.message_user(request, "Wifi location not found.", level="error")
-    #     except Exception as e:
-    #         self.message_user(request, f"Error: {e}", level="error")
-    #     return redirect(request.META.get('HTTP_REFERER', 'admin:index'))
-
-    
-
-
 
 
 django_admin.site.register(WifiUser, WifiUserAdmin)
