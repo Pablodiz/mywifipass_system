@@ -8,15 +8,15 @@ def wifi_network_locations_list(request):
     return render(request, "getEAP_TLS/wifilocation/wifi_network_locations_list.html", {"locations": locations})
 
 
-def wifi_location_details(request, event_id):
+def wifi_location_details(request, location_uuid):
     """View for displaying the details of a specific WifiNetworkLocation."""
-    event = get_object_or_404(WifiNetworkLocation, id=event_id)
+    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
     return render(request, "getEAP_TLS/wifilocation/wifi_location_details.html", {"location": event})
 
 
-def wifi_user_autoregistration(request, event_id):
-    # Get the event object using the event_id        
-    event = get_object_or_404(WifiNetworkLocation, id=event_id)
+def wifi_user_autoregistration(request, location_uuid):
+    # Get the event object using the location_uuid        
+    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
     if request.method == "POST":
         form = WifiUserForm(request.POST)
         if form.is_valid():

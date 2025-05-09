@@ -9,6 +9,7 @@ urlpatterns = [
     path("user_qr/" + "<uuid:uuid>/", rest_api.user_qr, name='user-qr'),
     path(USER_PATH + "<uuid:uuid>/key", rest_api.user_key, name='user-key'),
     path('api-token-auth/', views.obtain_auth_token, name = 'api-token-auth'),
-    path(USER_PATH + "<uuid:uuid>/validate", rest_api.validate_user, name='validate-user'),
-    path("events/<int:id>/crl", rest_api.show_crl, name='event-crl'),
+    path(USER_PATH + "<uuid:uuid>/authorize", rest_api.validate_user, name='authorize-user'),
+    path(USER_PATH + "<uuid:user_uuid>/validate", rest_api.check_user, name='check-user'),
+    path("events/<uuid:uuid>/crl", rest_api.show_crl, name='event-crl'),
 ]
