@@ -4,9 +4,11 @@ from django.views.generic.base import RedirectView
 from getEAP_TLS.settings import API_PATH
 import getEAP_TLS.views
 import uuid 
+from getEAP_TLS.views import admin_qr_view
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/events/', permanent=False)),
+    path('admin/qr/', admin_qr_view, name='admin_qr_view'),
     path('admin/', admin.site.urls),
     path(API_PATH, include('getEAP_TLS.api.urls')),
     path('events/', view=getEAP_TLS.views.wifi_network_locations_list, name="events"),

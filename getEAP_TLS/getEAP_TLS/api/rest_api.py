@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.http import Http404, FileResponse, HttpResponse
 import uuid
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
-from getEAP_TLS.settings import BASE_URL, API_PATH, USER_PATH
 from getEAP_TLS.utils import generate_qr_code
+import getEAP_TLS.api.urls as urls 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 import base64
@@ -18,26 +18,12 @@ from rest_framework.decorators import permission_classes
 # Anotate the function with:  
 # @permission_classes([IsAdminUser])
 
+from datetime import timedelta
+from django.utils import timezone
+from rest_framework.authtoken.models import Token
+from django.contrib.auth.models import User
+from getEAP_TLS.api.auth_model import LoginToken
 
-def user_url (user_uuid):
-    """
-    Function to get the URL of the user
-    Args:
-        user_uuid: UUID of the user
-    Returns:
-        url: URL of the user
-    """
-    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) 
-
-def user_qr_url (user_uuid):
-    """
-    Function to get the URL of the user QR code
-    Args:
-        user_uuid: UUID of the user
-    Returns:
-        url: URL of the user QR code
-    """
-    return BASE_URL + API_PATH + "user_qr/" + str(user_uuid) 
 
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
@@ -50,7 +36,6 @@ def cipher_AES_256_ECB(plaintext: str, clave: bytes):
     return base64.b64encode(text_cifrado)
 
 
-
 def replace_nulls(obj):
     if isinstance(obj, dict):
         return {k: replace_nulls(v) for k, v in obj.items()}
@@ -59,37 +44,6 @@ def replace_nulls(obj):
     elif obj is None:
         return ""
     return obj
-
-
-def certificates_symmetric_key_url(user_uuid: uuid):
-    """
-    Function to get the URL of the symmetric key of the user
-    Args:
-        user_uuid: UUID of the user
-    Returns:
-        url: URL of the symmetric key of the user
-    """
-    return user_url(user_uuid) + "/key"
-
-def validation_url(user_uuid: uuid):
-    """
-    Function to get the URL for checking that the user exists for an event
-    Args:
-        user_uuid: UUID of the user
-    Returns:
-        url: URL for checking that the user exists for an event
-    """
-    return user_url(user_uuid) + "/validate"
-
-def authorize_url (user_uuid: uuid):
-    """
-    Function to get the URL for checking that the user exists for an event
-    Args:
-        user_uuid: UUID of the user
-    Returns:
-        url: URL where to authorize the user
-    """
-    return user_url(user_uuid) + "/authorize"
 
 def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNetworkLocation):
     """ 
@@ -125,8 +79,8 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'description': wifiNetworkLocation.description,
         'location_name': wifiNetworkLocation.name,
         'location_uuid': wifiNetworkLocation.location_uuid,
-        'validation_url': validation_url(wifiuser.user_uuid),
-        'certificates_symmetric_key_url': certificates_symmetric_key_url(wifiuser.user_uuid),
+        'validation_url': urls.validation_url(wifiuser.user_uuid),
+        'certificates_symmetric_key_url': urls.certificates_symmetric_key_url(wifiuser.user_uuid),
     }
     return replace_nulls(json_data)
 
@@ -156,7 +110,7 @@ def user_qr(request, uuid: uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        url = user_url(user.user_uuid)
+        url = urls.user_url(user.user_uuid)
         buffer = generate_qr_code(url)
         
         # Return the binary stream as a FileResponse
@@ -182,7 +136,7 @@ def user_key(request, uuid:uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        if user.allow_access:
+        if user.allow_access and user.allow_access_expiration > timezone.now():
             certificates_symmetric_key = user.certificates_symmetric_key.hex()
             return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
         else: 
@@ -232,7 +186,7 @@ def check_user(request, user_uuid:uuid):
         return Response({
             'id_document': user.id_document,
             'name': user.name,
-            'authorize_url': authorize_url(user.user_uuid)
+            'authorize_url': urls.authorize_url(user.user_uuid)
         }, status=status.HTTP_200_OK)
     
     except Exception as e:
@@ -240,7 +194,7 @@ def check_user(request, user_uuid:uuid):
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
-def validate_user(request, uuid:uuid): 
+def allow_access_to_user(request, uuid:uuid): 
     """
     Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
     
@@ -255,6 +209,7 @@ def validate_user(request, uuid:uuid):
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
         user.allow_access = True
+        user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
         user.save()
         return Response({'message': 'The user can now get the key.'}, status=status.HTTP_200_OK)
     except serializers.ValidationError as e:
@@ -289,3 +244,36 @@ def show_crl(request, uuid:uuid):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
+@api_view(['POST'])
+def obtain_auth_token_username_token(request):
+    """
+    Handles the HTTP request to obtain a HTTP authentication token from a username and token.
+    
+    Args:
+        request: The HTTP request object.
+    
+    Returns:
+        Response: A response containing the authentication token or an error message.
+    """
+    try:
+        username = request.data.get('username')
+        qr_token = request.data.get('token')
+        if not username or not qr_token:
+            return Response({'error': 'username and token are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = get_object_or_404(User, username=username)
+        except Http404:
+            return Response({'error': f'User with username {username} not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            token = get_object_or_404(LoginToken, token=qr_token, user=user)
+            if token.is_valid():
+                auth_token, created = Token.objects.get_or_create(user=user)
+                return Response({'token': str(auth_token)}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Token is expired.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Http404:
+            return Response({'error': f'Token {qr_token} not found for user {username}.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

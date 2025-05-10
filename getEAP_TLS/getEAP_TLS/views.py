@@ -2,6 +2,12 @@ from getEAP_TLS.models import WifiNetworkLocation
 from getEAP_TLS.forms import WifiUserForm 
 from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse
+from getEAP_TLS.utils import generate_qr_code
+from getEAP_TLS.api.auth_model import LoginToken
+from django.utils import timezone
+from datetime import timedelta
+from getEAP_TLS.settings import BASE_URL
 
 def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
@@ -29,3 +35,17 @@ def wifi_user_autoregistration(request, location_uuid):
         form = WifiUserForm()
 
     return render(request, "getEAP_TLS/wifiuser/register.html", {"form": form, "event": event})
+
+def admin_qr_view(request):
+    LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()
+    token = LoginToken.objects.create(
+        user=request.user,
+        expires_at=timezone.now() + timedelta(minutes=5)
+    )
+    data = {
+        "username": request.user.username,
+        "token": str(token.token),
+        "url": BASE_URL + "api/login/token"
+    }
+    qr_img = generate_qr_code(data)  
+    return HttpResponse(qr_img, content_type='image/png')   
