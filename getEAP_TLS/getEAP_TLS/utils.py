@@ -27,7 +27,7 @@ def generate_qr_code(data: str) -> BytesIO:
 
 
 def send_mail(user: WifiUser):
-    from getEAP_TLS.api.rest_api import user_qr_url, user_url # Import here to avoid circular import
+    from getEAP_TLS.api.urls import user_qr_url, user_url # Import here to avoid circular import
     html_content = render_to_string(
         "getEAP_TLS/email/register_email.html",
         context={
