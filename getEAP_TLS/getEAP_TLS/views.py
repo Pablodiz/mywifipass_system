@@ -8,7 +8,7 @@ from getEAP_TLS.api.auth_model import LoginToken
 from django.utils import timezone
 from datetime import timedelta
 from getEAP_TLS.settings import BASE_URL
-
+import json 
 def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
     return render(request, "getEAP_TLS/wifilocation/wifi_network_locations_list.html", {"locations": locations})
@@ -47,5 +47,6 @@ def admin_qr_view(request):
         "token": str(token.token),
         "url": BASE_URL + "api/login/token"
     }
-    qr_img = generate_qr_code(data)  
+    json_data = json.dumps(data) 
+    qr_img = generate_qr_code(str(json_data))  
     return HttpResponse(qr_img, content_type='image/png')   
