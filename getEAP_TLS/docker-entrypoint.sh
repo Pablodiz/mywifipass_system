@@ -2,6 +2,7 @@
 
 # Prepare the database
 echo "running migrations"
+python3 manage.py makemigrations
 python3 manage.py migrate
 # Collect static files for the web server to use
 python3 manage.py collectstatic --noinput
