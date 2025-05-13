@@ -2,43 +2,12 @@
 
 {% block content %}
 <div class="event-container">
-  <h1 class="event-title">{{ location.name }}</h1>
   
-  <div class="event-details">
-    <ul class="details-list">
-      {% if location.description %}
-      <li>
-        <span class="detail-icon">📝</span>
-        <span class="detail-label">Description:</span> 
-        <span class="detail-value">{{ location.description }}</span>
-      </li>
-      {% endif %}
-      {% if location.location %}
-      <li>
-        <span class="detail-icon">📍</span>
-        <span class="detail-label">Location:</span> 
-        <span class="detail-value">{{ location.location }}</span>
-      </li>
-      {% endif %}
-      {% if location.start_date %}
-      <li>
-        <span class="detail-icon">🗓️</span>
-        <span class="detail-label">Start Date:</span> 
-        <span class="detail-value">March 29, 2025</span>
-      </li>
-      {% endif %}
-      {% if location.end_date %}
-      <li>
-        <span class="detail-icon">🏁</span>
-        <span class="detail-label">End Date:</span> 
-        <span class="detail-value">March 29, 2035</span>
-      </li>
-      {% endif %}
-    </ul>
-  </div>
+  {% include 'getEAP_TLS/common/event_details.html' %}
+
   <!-- QR and URL for the pass -->
     <div class="qr-code">
-      <img src="{{ qr_code_url }}" alt="QR Code" />
+      <img src="{{ qr_code_url }}" alt="QR Code" style="width: 200px; height: 200px;"/>
       <p>Scan to register</p>
       <p>or visit: <a href="{{ pass_url }}">{{ pass_url }}</a></p>  
 </div>

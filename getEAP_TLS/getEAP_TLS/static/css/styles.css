@@ -90,6 +90,7 @@ body {
     margin-bottom: 16px;
     display: flex;
     align-items: flex-start;
+    flex-direction: column;
     line-height: 1.4;
 }
 
@@ -110,13 +111,19 @@ body {
 
 /* Form stylings */
 .event-container {
-    max-width: 500px;
+    max-width: 1000px;
     margin: 40px auto;
     padding: 20px;
     background-color: white;
     border-radius: var(--card-border-radius);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     border: 2px solid var(--secondary-color);
+}
+
+.label-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
 }
 
 .my-form {

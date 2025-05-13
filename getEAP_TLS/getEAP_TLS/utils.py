@@ -31,7 +31,7 @@ def send_mail(user: WifiUser):
     html_content = render_to_string(
         "getEAP_TLS/email/register_email.html",
         context={
-            "location": user.wifiLocation.name, 
+            "location": user.wifiLocation, 
             "qr_code_url": user_qr_url(user.user_uuid),
             "pass_url": user_url(user.user_uuid)      
         },
