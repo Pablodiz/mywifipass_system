@@ -23,7 +23,6 @@ services:
     container_name: radius-server
     ports:
       - "1812:1812/udp"
-      - "1813:1813/udp"
     env_file:
       - ./our_radius/config.env
     volumes:
