@@ -171,7 +171,6 @@ ALLOWED_HOSTS = ["0.0.0.0", "*"]
 ssl = config('SSL', default=False, cast=bool)
 
 if ssl:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
@@ -179,5 +178,8 @@ if ssl:
 else: 
     http_header = "http://"
 
-
+# Configure the base URL for the application
 BASE_URL = f"{http_header}{DOMAIN}/"
+
+# Configure the usage of a reverse proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
