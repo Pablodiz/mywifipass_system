@@ -7,7 +7,7 @@ services:
     volumes:
       - shared-certs:/djangox509/getEAP_TLS/server_certs
     ports:
-      - "8000:8000"
+      - "8000:10000"
     working_dir: /djangox509/getEAP_TLS
     networks:
       - our_network
@@ -37,8 +37,6 @@ services:
     container_name: mysql-server
     env_file:
       - ./our_mysql/config.env
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
