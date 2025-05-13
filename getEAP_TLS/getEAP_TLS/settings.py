@@ -147,7 +147,7 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # URL configuration 
-BASE_URL = config('BASE_URL', default="http://localhost:8000/")
+DOMAIN = config('DOMAIN', default="localhost:8000")
 USER_PATH = "user/" 
 API_PATH = "api/"
 
@@ -167,3 +167,17 @@ SECRET_KEY = secret_key
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
+
+ssl = config('SSL', default=False, cast=bool)
+
+if ssl:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    http_header = "https://"
+else: 
+    http_header = "http://"
+
+
+BASE_URL = f"{http_header}{DOMAIN}/"
