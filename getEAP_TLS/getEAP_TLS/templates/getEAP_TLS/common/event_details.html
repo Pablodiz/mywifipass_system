@@ -1,41 +1,16 @@
 <h1 class="event-title">{{ location.name }}</h1>
 <div class="event-details">
     <ul class="details-list">
-    {% if location.description %}
-    <li>
-        <div class="label-container">
-            <span class="detail-icon">📝</span>
-            <span class="detail-label">Description:</span>
-        </div>
-        <span class="detail-value">{{ location.description }}</span>
-    </li>
-    {% endif %}
-    {% if location.location %}
-    <li>
-        <div class="label-container">
-            <span class="detail-icon">📍</span>
-            <span class="detail-label">Location:</span>
-        </div>
-        <span class="detail-value">{{ location.location }}</span>
-    </li>
-    {% endif %}
-    {% if location.start_date %}
-    <li>
-        <div class="label-container">
-            <span class="detail-icon">🗓️</span>
-            <span class="detail-label">Start Date:</span>
-        </div>
-        <span class="detail-value">March 29, 2025</span>
-    </li>
-    {% endif %}
-    {% if location.end_date %}
-    <li>
-        <div class="label-container">
-            <span class="detail-icon">🏁</span>
-            <span class="detail-label">End Date:</span>
-        </div>
-        <span class="detail-value">March 29, 2035</span>
-    </li>
-    {% endif %}
+        {% include 'getEAP_TLS/common/event_details_always_present.html' %}
+
+        {% if location.description %}
+        <li>
+            <div class="label-container">
+                <span class="detail-icon">📝</span>
+                <span class="detail-label">Description:</span>
+            </div>
+            <span class="detail-value">{{ location.description }}</span>
+        </li>
+        {% endif %}
     </ul>
 </div>

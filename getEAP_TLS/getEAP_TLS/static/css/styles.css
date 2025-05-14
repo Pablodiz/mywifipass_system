@@ -111,7 +111,7 @@ body {
 
 /* Form stylings */
 .event-container {
-    max-width: 1000px;
+    max-width: 1200px;
     margin: 40px auto;
     padding: 20px;
     background-color: white;
@@ -158,3 +158,74 @@ body {
 .my-form p {
     margin-bottom: 15px;
 }
+
+.header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-container {
+    max-width: 1350px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Container for the breadcrumb */
+.breadcrumb {
+    display: flex;
+    list-style: none;
+    margin: 1rem 0;
+    padding: 0.5rem 2rem;
+    background-color: white;
+    border-radius: var(--card-border-radius);
+    max-width: 1350px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--secondary-color);
+}
+
+/* Styles for the breadcrumb elements */
+.breadcrumb li {
+    display: flex;
+    align-items: center;
+}
+
+/* Separators between breadcrumb items */
+.breadcrumb li:not(:last-child)::after {
+    content: "/";
+    margin: 0 0.5rem;
+    color: var(--tertiary-color);
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb .active {
+    color: var(--tertiary-color);
+    font-weight: 500;
+}
+
+.custom-container {
+    width: 100%;
+    max-width: 1350px; 
+    margin-right: auto;
+    margin-left: auto;
+}
+  

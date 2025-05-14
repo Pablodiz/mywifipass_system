@@ -9,7 +9,22 @@
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
 </head>
 <body>
-    <main class="container my-4">
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">MyWifiPass</div>
+            <a href="{% url 'admin:index' %}">
+                <button class="my-button">Administration</button>
+            </a>
+        </div>
+    </header>
+    
+    <!-- Breadcrumb -->
+    <ul class="breadcrumb">
+        <li><a href="/">Home</a></li>
+        <li class="active">Active Events</li>
+    </ul>
+
+    <main class="custom-container my-4">
         {% block content %}
         <!-- Content of the templates that extend this base.html-->
         {% endblock %}
