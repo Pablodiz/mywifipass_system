@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from decouple import Config, RepositoryEnv
 from django.core.management.utils import get_random_secret_key
+import os 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -75,19 +76,16 @@ REST_FRAMEWORK = {
     ],
 }
 
-env_path = '/djangox509/our_mysql/config.env'
-config = Config(RepositoryEnv(env_path))
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('MYSQL_DATABASE', default="getEAP_TLS"),
-        'USER': config('MYSQL_USER', default="root"),
-        'PASSWORD': config('MYSQL_PASSWORD', default=""),
-        'HOST': config('MYSQL_SERVER', default="localhost"),
+        'NAME': os.getenv('MYSQL_DATABASE', default="getEAP_TLS"),
+        'USER': os.getenv('MYSQL_USER', default="root"),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', default=""),
+        'HOST': os.getenv('MYSQL_SERVER', default="localhost"),
     }
 }
 
@@ -134,41 +132,41 @@ STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-env_path = './config.env'
-config = Config(RepositoryEnv(env_path))
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = config('EMAIL_HOST', default="smtp.gmail.com")
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD') 
+EMAIL_HOST = os.getenv('EMAIL_HOST', default="smtp.gmail.com")
+EMAIL_PORT = os.getenv('EMAIL_HOST_PORT', default=587)
+EMAIL_USE_TLS =  os.getenv('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # URL configuration 
-DOMAIN = config('DOMAIN', default="localhost:8000")
+DOMAIN = os.getenv('DOMAIN', default="localhost:8000")
 USER_PATH = "user/" 
 API_PATH = "api/"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # If the secret key is defined we use it, if not we generate a new one and add it to the .env file
+secret_path = os.path.join(BASE_DIR, "secrets/.env")
+config = Config(RepositoryEnv(secret_path))
 try:
     secret_key = config("DJANGO_SECRET_KEY")
 except:
     secret = get_random_secret_key()
-    with open(env_path, "a") as f:
-        f.write(f"\n{"DJANGO_SECRET_KEY"}={secret}\n")
+    with open("/djangox509/getEAP_TLS/secrets/.env", "w") as f:
+        f.write(f"\n{"DJANGO_SECRET_KEY"}='{secret}'")
     secret_key = secret
 
 SECRET_KEY = secret_key
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+DEBUG = os.getenv('DEBUG', default=False)
 
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
 
-ssl = config('SSL', default=False, cast=bool)
+ssl = os.getenv('SSL', default=False)
 
 if ssl:
     SESSION_COOKIE_SECURE = True

@@ -6,25 +6,35 @@ services:
     container_name: webapp
     volumes:
       - shared-certs:/djangox509/getEAP_TLS/server_certs
+      - webapp_secrets:/djangox509/getEAP_TLS/secrets
     ports:
-      - "10000:8000"
+      - "10000:${WEBAPP_PORT}"
     working_dir: /djangox509/getEAP_TLS
     networks:
       - our_network
     depends_on:
       mysql:
         condition: service_healthy
-    env_file:
-      - ./our_mysql/config.env
     environment:
-      - MYSQL_SERVER=mysql-server
+      - MYSQL_SERVER=mysql-server # Name of the Container, do not change 
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_ROOT_PASSWORD
+      - EMAIL_HOST_USER
+      - EMAIL_HOST_PASSWORD
+      - EMAIL_HOST
+      - EMAIL_USE_TLS
+      - EMAIL_HOST_PORT
+      - DOMAIN
   radius:
     build: ./our_radius
     container_name: radius-server
     ports:
-      - "1812:1812/udp"
-    env_file:
-      - ./our_radius/config.env
+      - "1812:${RADIUS_PORT}/udp"
+    environment:
+      - RADIUS_CLIENT_IP
+      - RADIUS_SECRET
     volumes:
       - shared-certs:/etc/raddb/server_certs
       - radius_config:/etc/raddb
@@ -34,8 +44,11 @@ services:
   mysql:
     image: mysql:8.0
     container_name: mysql-server
-    env_file:
-      - ./our_mysql/config.env
+    environment:
+      - MYSQL_DATABASE
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_ROOT_PASSWORD
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -49,6 +62,7 @@ volumes:
   shared-certs:  # Shared volume for certificates
   mysql_data:  # Volume for MySQL
   radius_config: # Volume for RADIUS server configuration
+  webapp_secrets: # Volume for Django secrets
 
 networks:
   our_network:

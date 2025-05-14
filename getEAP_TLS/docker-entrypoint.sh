@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Create the folder for the django secret key if it doesn't exist
+if [ ! -d "/djangox509/getEAP_TLS/secrets" ]; then
+    mkdir -p /djangox509/getEAP_TLS/secrets
+fi
+
+if [ ! -f "/djangox509/getEAP_TLS/secrets/.env" ]; then 
+    touch /djangox509/getEAP_TLS/secrets/.env
+fi
+
 # Prepare the database
 echo "running migrations"
 python3 manage.py makemigrations
