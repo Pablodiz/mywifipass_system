@@ -19,10 +19,14 @@
     </header>
     
     <!-- Breadcrumb -->
-    <ul class="breadcrumb">
+    <!-- <ul class="breadcrumb">
         <li><a href="/">Home</a></li>
         <li class="active">Active Events</li>
-    </ul>
+    </ul> -->
+
+    {% block breadcrumb %}
+    <!-- Each template that extends this base.html can define its own breadcrumb here. -->
+    {% endblock %}
 
     <main class="custom-container my-4">
         {% block content %}

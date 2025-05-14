@@ -1,16 +1,16 @@
 {% extends 'base.html' %}
 
 {% block breadcrumb %}
-<ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'events' %}">Events</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{ location.name }}</li>
-</ol>
+<ul class="breadcrumb">
+    <li><a href="/">Home</a></li>
+    <li><a href="{% url 'events' %}">Active Events</a></li>
+    <li class="active">{{ location.name }}</li>
+</ul>
 {% endblock %}
 
 
 {% block content %}
 <div class="event-container">  
-
   {% include 'getEAP_TLS/common/event_details.html' %}
   <div class="submit-row text-center mb-4">
     <button type="button" class="my-button" onclick="window.location.href='register';">Register for the event</button>
