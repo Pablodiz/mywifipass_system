@@ -1,5 +1,12 @@
 {% extends "admin/base.html" %}
 
+
+{% block branding %}
+  <h1 id="site-name">
+    <a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a>
+  </h1>
+{% endblock %}
+
 {% block userlinks %}
     <a href="javascript:void(0)" onclick="toggleQR()" class="qr-link">SHOW QR</a> /
     {{ block.super }}
@@ -21,6 +28,7 @@
         display: none;
         position: absolute;
         background-color: #f9f9f9;
+        z-index: 1000;
     }
     .show {
         display: block;

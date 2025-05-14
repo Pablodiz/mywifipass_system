@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.utils.html import format_html
 from django.urls import path
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, render, get_object_or_404, reverse
 
 #from getEAP_TLS.radius.radius_certs import export_wifi_location_certificates
 from django_x509.models import Cert, Ca
@@ -67,7 +67,8 @@ class WifiUserAdmin(ModelAdmin):
 
                 for row in reader:
                     try:
-                        wifi_location = WifiNetworkLocation.objects.get(name=row['wifiLocation'])
+                        selected_wifi_location = form.cleaned_data['wifiLocation']
+                        wifi_location = WifiNetworkLocation.objects.get(pk=selected_wifi_location)
                         WifiUser.objects.create(
                             name=row['name'],
                             email=row['email'],
@@ -84,13 +85,13 @@ class WifiUserAdmin(ModelAdmin):
                     self.message_user(request, f"Successfully imported {success_count} users.")
                 if errors:
                     self.message_user(request, f"Errors occurred: {'; '.join(errors)}", level="error")
-                return HttpResponseRedirect("../")
-
+                return HttpResponseRedirect(reverse('admin:getEAP_TLS_wifiuser_changelist'))
+        
         form = CSVImportForm()
-        context = {
-            'form': form,
-            'title': "Import WifiUsers from CSV",
-        }
+        context = self.admin_site.each_context(request)
+        context['form'] = form
+        context['title'] = "Import WifiUsers from CSV"
+
         return render(request, "admin/csv_form.html", context)
     
     def changelist_view(self, request, extra_context=None):
@@ -124,10 +125,10 @@ class WifiNetworkLocationAdmin(ModelAdmin):
 
 django_admin.site.register(WifiUser, WifiUserAdmin)
 django_admin.site.register(WifiNetworkLocation, WifiNetworkLocationAdmin)
-# Unregister Ca and Cert from admin panel "para que sea transparente para el usuario" 
+# Unregister unnecesary classes from admin panel
 django_admin.site.unregister(Cert)
 django_admin.site.unregister(Ca)
 
-django_admin.site.site_header = "getEAP_TLS Administration"
-django_admin.site.site_title = "getEAP_TLS site Administration"
-django_admin.site.index_title = "getEAP_TLS Administration"
+django_admin.site.site_header = "MyWifiPass Administration"
+django_admin.site.site_title = "MyWifiPass site Administration"
+django_admin.site.index_title = "MyWifiPass Administration"
