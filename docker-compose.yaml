@@ -8,7 +8,7 @@ services:
       - shared-certs:/djangox509/getEAP_TLS/server_certs
       - webapp_secrets:/djangox509/getEAP_TLS/secrets
     ports:
-      - "10000:${WEBAPP_PORT}"
+      - "${WEBAPP_PORT}:8000"
     working_dir: /djangox509/getEAP_TLS
     networks:
       - our_network
@@ -20,7 +20,7 @@ services:
       - MYSQL_DATABASE
       - MYSQL_USER
       - MYSQL_PASSWORD
-      - MYSQL_ROOT_PASSWORD
+      - DEBUG
       - EMAIL_HOST_USER
       - EMAIL_HOST_PASSWORD
       - EMAIL_HOST
@@ -32,7 +32,7 @@ services:
     build: ./our_radius
     container_name: radius-server
     ports:
-      - "1812:${RADIUS_PORT}/udp"
+      - "${RADIUS_PORT}:1812/udp"
     environment:
       - RADIUS_CLIENT_IP
       - RADIUS_SECRET

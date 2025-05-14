@@ -162,11 +162,11 @@ except:
 SECRET_KEY = secret_key
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', default=False)
+DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = ["0.0.0.0", "*"]
 
-ssl = os.getenv('SSL', default=False)
+ssl = os.getenv('SSL', default='False').lower() in ('true', '1', 'yes')
 
 if ssl:
     SESSION_COOKIE_SECURE = True
