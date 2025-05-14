@@ -9,42 +9,9 @@
 
 
 {% block content %}
-<div class="event-container">
-  <h1 class="event-title">{{ location.name }}</h1>
-  
-  <div class="event-details">
-    <ul class="details-list">
-      {% if location.description %}
-      <li>
-        <span class="detail-icon">📝</span>
-        <span class="detail-label">Description:</span> 
-        <span class="detail-value">{{ location.description }}</span>
-      </li>
-      {% endif %}
-      {% if location.location %}
-      <li>
-        <span class="detail-icon">📍</span>
-        <span class="detail-label">Location:</span> 
-        <span class="detail-value">{{ location.location }}</span>
-      </li>
-      {% endif %}
-      {% if location.start_date %}
-      <li>
-        <span class="detail-icon">🗓️</span>
-        <span class="detail-label">Start Date:</span> 
-        <span class="detail-value">March 29, 2025</span>
-      </li>
-      {% endif %}
-      {% if location.end_date %}
-      <li>
-        <span class="detail-icon">🏁</span>
-        <span class="detail-label">End Date:</span> 
-        <span class="detail-value">March 29, 2035</span>
-      </li>
-      {% endif %}
-    </ul>
-  </div>
-  
+<div class="event-container">  
+
+  {% include 'getEAP_TLS/common/event_details.html' %}
   <div class="submit-row text-center mb-4">
     <button type="button" class="my-button" onclick="window.location.href='register';">Register for the event</button>
   </div> 

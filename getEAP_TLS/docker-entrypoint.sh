@@ -1,24 +1,15 @@
 #!/bin/bash
 
-
-if [ "$1" == "makemigrations" ]; then
-    echo "generating migrations"
-    python3 manage.py makemigrations getEAP_TLS;
-fi
-
+# Prepare the database
 echo "running migrations"
+python3 manage.py makemigrations
 python3 manage.py migrate
-echo "creating superuser (admin/password123)"
+# Collect static files for the web server to use
+python3 manage.py collectstatic --noinput
+# Generate a superuser for the admin interface with a default password (admin)
+echo "creating superuser (admin/admin)"
 python manage.py shell <<EOF
 from django.contrib.auth.models import User
 if not User.objects.filter(username='admin').exists():
-    User.objects.create_superuser('admin', 'admin@example.com', 'password123')
+    User.objects.create_superuser('admin', 'admin@example.com', 'admin')
 EOF
-
-if [ "$1" == "run" ]; then
-    echo "running server"
-    exec python3 manage.py runserver 0.0.0.0:8000
-else 
-    echo "waiting for your conection"
-    sleep infinity 
-fi 

@@ -3,7 +3,7 @@
 {% block breadcrumb %}
 <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url 'events' %}">Events</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'wifi_location_details' event.id %}">{{ event.name }}</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'wifi_location_details' event.location_uuid %}">{{ event.name }}</a></li>
     <li class="breadcrumb-item active" aria-current="page">Register</li>
 </ol>
 {% endblock %}

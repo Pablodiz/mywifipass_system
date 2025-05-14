@@ -11,7 +11,7 @@
 <div class="container">
     {% for location in locations %}
       <div class="event-container hover-card">
-        <a href="{% url 'wifi_location_details' location.id %}" class="text-decoration-none">
+        <a href="{% url 'wifi_location_details' location.location_uuid %}" class="text-decoration-none">
             <h2 class="event-title">{{ location.name }}</h2>
             <div class="event-details">
 
