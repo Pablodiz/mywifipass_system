@@ -18,15 +18,23 @@
         </div>
     </header>
     
-    <!-- Breadcrumb -->
-    <!-- <ul class="breadcrumb">
-        <li><a href="/">Home</a></li>
-        <li class="active">Active Events</li>
-    </ul> -->
 
-    {% block breadcrumb %}
-    <!-- Each template that extends this base.html can define its own breadcrumb here. -->
-    {% endblock %}
+    {% if breadcrumbs %}
+    <nav> 
+        {% block breadcrumb %}
+        <!-- Each template that extends this base.html can define its own breadcrumb here. -->
+            <ul class="breadcrumb">
+            {% for breadcrumb in breadcrumbs %}
+                {% if not forloop.last %}
+                    <li><a href="{{ breadcrumb.url }}">{{ breadcrumb.name }}</a></li>
+                {% else %}
+                    <li class="active">{{ breadcrumb.name }}</li>   
+                {% endif %}
+            {% endfor %}
+            </ul>
+        {% endblock %}
+    </nav>
+    {% endif %}
 
     <main class="custom-container my-4">
         {% block content %}

@@ -1,13 +1,5 @@
 {% extends 'base.html' %}
 
-{% block breadcrumb %}
-<ul class="breadcrumb">
-    <li><a href="/">Home</a></li>
-    <li><a href="{% url 'events' %}">Active Events</a></li>
-    <li><a href="{% url 'wifi_location_details' location_uuid=event.location_uuid %}">{{ event.name }}</a></li>
-    <li class="active">Registration</li>
-</ul>
-{% endblock %}
 {% block content %}
 <div class="event-container">
   <h1 class="event-title">{{ event.name }}</h1>

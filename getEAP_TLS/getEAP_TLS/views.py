@@ -9,15 +9,27 @@ from django.utils import timezone
 from datetime import timedelta
 from getEAP_TLS.settings import BASE_URL
 import json 
+
 def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
-    return render(request, "getEAP_TLS/wifilocation/wifi_network_locations_list.html", {"locations": locations})
+    breadcrumbs = [
+        {"name": "Home", "url": "/"},
+        {"name": "Active events", "url": "/events/"},
+    ]
+
+    return render(request, "getEAP_TLS/wifilocation/wifi_network_locations_list.html", {"locations": locations, "breadcrumbs": breadcrumbs})
 
 
 def wifi_location_details(request, location_uuid):
     """View for displaying the details of a specific WifiNetworkLocation."""
     event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
-    return render(request, "getEAP_TLS/wifilocation/wifi_location_details.html", {"location": event})
+    
+    breadcrumbs = [
+        {"name": "Home", "url": "/"},
+        {"name": "Active events", "url": "/events/"},
+        {"name": event.name, "url": f"/events/{location_uuid}/"},
+    ]
+    return render(request, "getEAP_TLS/wifilocation/wifi_location_details.html", {"location": event, "breadcrumbs": breadcrumbs})
 
 
 def wifi_user_autoregistration(request, location_uuid):
@@ -34,7 +46,14 @@ def wifi_user_autoregistration(request, location_uuid):
     else:
         form = WifiUserForm()
 
-    return render(request, "getEAP_TLS/wifiuser/register.html", {"form": form, "event": event})
+    breadcrumbs = [
+        {"name": "Home", "url": "/"},
+        {"name": "Active events", "url": "/events/"},
+        {"name": event.name, "url": f"/events/{location_uuid}/"},
+        {"name": "Registration", "url": f"/events/{location_uuid}/register"},
+    ]
+        
+    return render(request, "getEAP_TLS/wifiuser/register.html", {"form": form, "event": event, "breadcrumbs": breadcrumbs})
 
 def admin_qr_view(request):
     LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()
