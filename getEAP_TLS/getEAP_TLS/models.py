@@ -188,16 +188,14 @@ class WifiNetworkLocation(models.Model):
     location_uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
 
     def save(self, *args, **kwargs):
-        from getEAP_TLS.radius.radius_certs import export_certificates # Import here to avoid circular import
+        from getEAP_TLS.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
         # Establish default values for start and end dates:
         if not self.start_date:
-            start_date = date.today()
-        else:
-            start_date = self.start_date
+            self.start_date = date.today()
+
         if not self.end_date:
-            end_date = start_date + timedelta(days=10*365+2)
-        else:
-            end_date = self.end_date
+            self.end_date = self.start_date + timedelta(days=10*365+2)
+
         
         if not self.location_uuid:
             while True:
@@ -209,19 +207,30 @@ class WifiNetworkLocation(models.Model):
                     super().save(*args, **kwargs)
                     break
 
+        original = WifiNetworkLocation.objects.filter(location_uuid=self.location_uuid).first()
+        if original:
+            if original.name != self.name or original.start_date != self.start_date or  original.end_date != self.end_date:
+                # If the name, start date or end date changed, we need to create a new CA and server certificates
+                self.certificates_CA = None
+                self.radius_Certificate = None
+            if self.is_enabled_in_radius != original.is_enabled_in_radius:
+                if self.is_enabled_in_radius:
+                    export_certificates(self)
+                else:
+                    mark_ssid_for_deletion(self)
 
         if not self.certificates_CA:
             # Create the CA for the certificates
             ca = MyCustomCA()
             ca.name=f"{self.name}'s CA"    
             ca.common_name=self.name
-            ca.validity_start=start_date
-            ca.validity_end=end_date
+            ca.validity_start=self.start_date
+            ca.validity_end=self.end_date
             ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
             ca.save()
             self.certificates_CA = ca
 
-        if not self.radius_Certificate:
+        if self.certificates_CA and not self.radius_Certificate:
             # Create the radius certificate
             radius_cert = MyCustomCert.objects.create(
                 name=f"{self.name}'s Radius Certificate",
@@ -232,8 +241,10 @@ class WifiNetworkLocation(models.Model):
             )
 
             self.radius_Certificate = radius_cert
+            
+            if self.is_enabled_in_radius:
+                export_certificates(self)
 
-        export_certificates(self)
         super().save(*args, **kwargs)
 
     def __str__(self):
