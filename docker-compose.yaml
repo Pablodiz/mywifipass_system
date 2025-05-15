@@ -37,10 +37,10 @@ services:
       - "${RADIUS_PORT}:1812/udp"
     environment:
       - RADIUS_CLIENT_IP
-      - RADIUS_SECRET
     volumes:
       - shared-certs:/etc/raddb/server_certs
       - radius_config:/etc/raddb
+      - ./our_radius/RADIUS_SECRET:/etc/raddb/secret/
     networks:
       - our_network
     restart: always

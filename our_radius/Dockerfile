@@ -7,7 +7,7 @@ COPY ./config/server-template /etc/raddb/sites-available/server-template
 COPY ./config/default /etc/raddb/sites-enabled/default
 COPY ./config/clients.conf.template /etc/raddb/clients.conf.template
 COPY ./config/cron /etc/cron.d/cron
-COPY ./config/process_ssids.sh ./config/automatic_crl_update.sh ./config/normalize_ssid.sh ./config/update_crl.sh ./config/create_ssids.sh ./config/remove_ssids.sh /usr/local/bin/
+COPY ./config/*.sh /usr/local/bin/
 
 RUN apt-get update &&   \
     # We install envsubst
@@ -28,7 +28,9 @@ EXPOSE 1812/udp 1813/udp
 # Env variables are replaced in the template, 
 # cron is started 
 # freeradius is started in debug mode as freerad user
-CMD envsubst < /etc/raddb/clients.conf.template > /etc/raddb/clients.conf && \ 
+CMD /usr/local/bin/docker-entrypoint.sh && \ 
+    export RADIUS_SECRET=$(cat /etc/raddb/secret/secret.txt) && \
+    envsubst < /etc/raddb/clients.conf.template > /etc/raddb/clients.conf && \ 
     chown freerad:freerad /etc/raddb/clients.conf && \
     cron && \
     freeradius -X
