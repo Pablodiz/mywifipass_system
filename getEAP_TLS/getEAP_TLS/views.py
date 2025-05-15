@@ -53,7 +53,7 @@ def wifi_user_autoregistration(request, location_uuid):
         {"name": "Registration", "url": f"/events/{location_uuid}/register"},
     ]
         
-    return render(request, "getEAP_TLS/wifiuser/register.html", {"form": form, "event": event, "breadcrumbs": breadcrumbs})
+    return render(request, "getEAP_TLS/wifiuser/register.html", {"form": form, "location": event, "breadcrumbs": breadcrumbs})
 
 def admin_qr_view(request):
     LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()

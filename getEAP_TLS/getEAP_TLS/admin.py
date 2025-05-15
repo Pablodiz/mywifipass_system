@@ -93,7 +93,7 @@ class WifiUserAdmin(ModelAdmin):
         context['title'] = "Import WifiUsers from CSV"
 
         return render(request, "admin/csv_form.html", context)
-    
+    #TODO move this views to another file
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['custom_button'] = {
@@ -118,9 +118,9 @@ class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiNetworkLocation model
     """
-    list_display = ["name", "SSID", "location", "start_date", "end_date"]
+    list_display = ["name", "SSID", "location", "start_date", "end_date", "is_enabled_in_radius", "is_visible_in_web"]
     search_fields = ["name", "SSID", "description", "location"]
-    fields = ["name", "SSID", "description", "location", "start_date", "end_date"]
+    fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web"]
 
 
 django_admin.site.register(WifiUser, WifiUserAdmin)

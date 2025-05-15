@@ -47,12 +47,19 @@ body {
 }
 
 /* Event Styles */
+
 .event-header {
-    padding: 25px 30px 15px;
-    position: relative;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: start;
+    padding: 20px;
+}
+
+.event-icon {
+    width: 50px;
+    height: 50px;
+    margin-right: 25px;
+    
 }
 
 .event-title {

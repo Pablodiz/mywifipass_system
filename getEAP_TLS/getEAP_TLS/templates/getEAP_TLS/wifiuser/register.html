@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="event-container">
-  <h1 class="event-title">{{ event.name }}</h1>
+  {% include 'getEAP_TLS/common/event_header.html' %}
   <form method="post" enctype="multipart/form-data" class="my-form">
     {% csrf_token %}
     

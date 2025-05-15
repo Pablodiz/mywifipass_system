@@ -114,7 +114,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = os.environ.get('TIME_ZONE', default='UTC')
 
 USE_I18N = False
 USE_TZ = True
@@ -126,6 +126,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / "staticfiles" 
 STATICFILES_DIRS = [BASE_DIR / "getEAP_TLS" / "static"]  
+MEDIA_URL = '/logos/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'logos')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

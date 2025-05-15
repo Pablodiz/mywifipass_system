@@ -22,7 +22,6 @@
     {% if breadcrumbs %}
     <nav> 
         {% block breadcrumb %}
-        <!-- Each template that extends this base.html can define its own breadcrumb here. -->
             <ul class="breadcrumb">
             {% for breadcrumb in breadcrumbs %}
                 {% if not forloop.last %}
@@ -45,4 +44,3 @@
 </body>
 </html>
 
-<!-- #TODO add a header with about and/or a way to navigate -->

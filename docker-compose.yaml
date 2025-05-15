@@ -7,6 +7,7 @@ services:
     volumes:
       - shared-certs:/djangox509/getEAP_TLS/server_certs
       - webapp_secrets:/djangox509/getEAP_TLS/secrets
+      - logos:/djangox509/getEAP_TLS/logos
     ports:
       - "${WEBAPP_PORT}:8000"
     working_dir: /djangox509/getEAP_TLS
@@ -28,6 +29,7 @@ services:
       - EMAIL_HOST_PORT
       - DOMAIN
       - SSL 
+      - TIME_ZONE
   radius:
     build: ./our_radius
     container_name: radius-server
@@ -64,6 +66,7 @@ volumes:
   mysql_data:  # Volume for MySQL
   radius_config: # Volume for RADIUS server configuration
   webapp_secrets: # Volume for Django secrets
+  logos: # Volume for events logos
 
 networks:
   our_network:
