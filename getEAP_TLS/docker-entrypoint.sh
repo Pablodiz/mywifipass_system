@@ -5,6 +5,10 @@ if [ ! -d "/djangox509/getEAP_TLS/secrets" ]; then
     mkdir -p /djangox509/getEAP_TLS/secrets
 fi
 
+if [ ! -d "/djangox509/getEAP_TLS/logos" ]; then
+    mkdir -p /djangox509/getEAP_TLS/logos
+fi
+
 if [ ! -f "/djangox509/getEAP_TLS/secrets/.env" ]; then 
     touch /djangox509/getEAP_TLS/secrets/.env
 fi
