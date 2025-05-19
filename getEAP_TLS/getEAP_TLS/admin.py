@@ -1,14 +1,15 @@
 from django.contrib.admin import ModelAdmin
-from django.contrib import admin as django_admin
+from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
 from django.urls import path
-from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render, get_object_or_404, reverse
 
-#from getEAP_TLS.radius.radius_certs import export_wifi_location_certificates
 from django_x509.models import Cert, Ca
 from getEAP_TLS.models import WifiUser, WifiNetworkLocation
+from django.contrib.auth.models import User, Group
+from rest_framework.authtoken.models import TokenProxy
+from django.contrib.admin.sites import NotRegistered
 
 from getEAP_TLS.forms import CSVImportForm
 import csv
@@ -123,12 +124,18 @@ class WifiNetworkLocationAdmin(ModelAdmin):
     fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web"]
 
 
-django_admin.site.register(WifiUser, WifiUserAdmin)
-django_admin.site.register(WifiNetworkLocation, WifiNetworkLocationAdmin)
+admin.site.register(WifiUser, WifiUserAdmin)
+admin.site.register(WifiNetworkLocation, WifiNetworkLocationAdmin)
 # Unregister unnecesary classes from admin panel
-django_admin.site.unregister(Cert)
-django_admin.site.unregister(Ca)
+admin.site.unregister(Cert)
+admin.site.unregister(Ca)
+admin.site.unregister(User)
+admin.site.unregister(Group)
+admin.site.unregister(TokenProxy)
 
-django_admin.site.site_header = "MyWifiPass Administration"
-django_admin.site.site_title = "MyWifiPass site Administration"
-django_admin.site.index_title = "MyWifiPass Administration"
+admin.site.site_header = "MyWifiPass Administration"
+admin.site.site_title = "MyWifiPass site Administration"
+admin.site.index_title = "MyWifiPass Administration"
+
+
+

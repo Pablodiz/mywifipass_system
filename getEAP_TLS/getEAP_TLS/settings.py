@@ -32,9 +32,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_x509',
-    'getEAP_TLS',
     'rest_framework',
     'rest_framework.authtoken',
+    'getEAP_TLS',
 ]
 
 MIDDLEWARE = [
@@ -72,7 +72,7 @@ WSGI_APPLICATION = 'getEAP_TLS.wsgi.application'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',  # Asegúrate de que esté esto
+        'rest_framework.authentication.TokenAuthentication',  
     ],
 }
 
