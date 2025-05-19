@@ -211,9 +211,12 @@ def allow_access_to_user(request, uuid:uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        user.has_attended = True
-        user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
-        user.save()
+        if (user.certificate.revoked is False):
+            user.has_attended = True
+            user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
+            user.save()
+        else: 
+            return Response({'error': 'User certificate is revoked.'}, status=status.HTTP_403_FORBIDDEN)
         return Response({'message': 'The user can now get the key.'}, status=status.HTTP_200_OK)
     except serializers.ValidationError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
