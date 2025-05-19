@@ -146,7 +146,7 @@ def user_key(request, uuid:uuid):
         if user.allow_access_expiration is None:
             # If the user has never been allowed access, we return a 403 Forbidden response
             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
-        if user.allow_access_expiration > timezone.now() and user.certificate.revoked is True:
+        if user.allow_access_expiration > timezone.now() and user.certificate.revoked is False:
             certificates_symmetric_key = user.certificates_symmetric_key.hex()
             return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
         else: 
