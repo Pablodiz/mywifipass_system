@@ -12,6 +12,7 @@ urlpatterns = [
     path('login/token', rest_api.obtain_auth_token_username_token, name = 'api-token-auth'),
     path(USER_PATH + "<uuid:uuid>/authorize", rest_api.allow_access_to_user, name='authorize-user'),
     path(USER_PATH + "<uuid:user_uuid>/validate", rest_api.check_user, name='check-user'),
+    path(USER_PATH + "<uuid:user_uuid>/downloaded", rest_api.has_downloaded_pass, name='downloaded'),
     path("events/<uuid:uuid>/crl", rest_api.show_crl, name='event-crl'),
 ]
 
@@ -64,3 +65,13 @@ def authorize_url (user_uuid: uuid):
         url: URL where to authorize the user
     """
     return user_url(user_uuid) + "/authorize"
+
+def has_downloaded_url(user_uuid: uuid):
+    """
+    Function to get the URL for checking that the user has downloaded the pass
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL where to check if the user has downloaded the pass
+    """
+    return user_url(user_uuid) + "/downloaded"

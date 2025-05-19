@@ -90,6 +90,7 @@ class WifiUser(models.Model):
     certificates_symmetric_key = models.BinaryField(max_length=32, blank=True, null=True)
     has_attended = models.BooleanField(default=False)
     allow_access_expiration = models.DateTimeField(blank=True, null=True)
+    has_downloaded_pass = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         from getEAP_TLS.utils import send_mail # Import here to avoid circular import

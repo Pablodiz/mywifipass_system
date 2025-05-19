@@ -81,6 +81,7 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'location_uuid': wifiNetworkLocation.location_uuid,
         'validation_url': urls.validation_url(wifiuser.user_uuid),
         'certificates_symmetric_key_url': urls.certificates_symmetric_key_url(wifiuser.user_uuid),
+        'has_downloaded_url': urls.has_downloaded_url(wifiuser.user_uuid),
     }
     return replace_nulls(json_data)
 
@@ -88,9 +89,15 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
 def user(request, uuid: uuid):
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        wifiLocation = user.wifiLocation
-        data = get_certificate_information(user, wifiLocation)
-        return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
+        if user.certificate.revoked is False:
+            if user.has_downloaded_pass is False: 
+                wifiLocation = user.wifiLocation
+                data = get_certificate_information(user, wifiLocation)
+                return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
+            else: 
+                return Response({'error': 'User has already downloaded the pass'}, status=status.HTTP_403_FORBIDDEN)
+        else: 
+            return Response({'error': 'User cannot access this resource'}, status=status.HTTP_403_FORBIDDEN)
     except Http404: 
         return Response({'error': 'User with UUID ' + str(uuid)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -281,5 +288,28 @@ def obtain_auth_token_username_token(request):
                 return Response({'error': 'Token is expired.'}, status=status.HTTP_400_BAD_REQUEST)
         except Http404:
             return Response({'error': f'Token {qr_token} not found for user {username}.'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
+def has_downloaded_pass(request, user_uuid:uuid):
+    """
+    Handles the HTTP request to set the has_downloaded_pass field of a WifiUser.
+    
+    Args:
+        request: The HTTP request object.
+    
+    Returns:
+        Response: A response indicating whether the operation was successful or not.
+    """
+    try:
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
+        user.has_downloaded_pass = True
+        user.save()
+        return Response({'message': 'The user has downloaded the pass.'}, status=status.HTTP_200_OK)
+    except serializers.ValidationError as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Http404: 
+        return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

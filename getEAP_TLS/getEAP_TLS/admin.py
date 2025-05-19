@@ -19,10 +19,11 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "has_attended", "revoke_certificate_button"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "has_attended", "revoke_certificate_button", "has_downloaded_pass"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation"]
     list_filter = ["wifiLocation"]
+    list_editable = ["has_downloaded_pass"]
 
     def show_qr_button(self, obj:WifiUser):
         return format_html(
