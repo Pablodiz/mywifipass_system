@@ -139,7 +139,7 @@ def user_key(request, uuid:uuid):
         if user.allow_access_expiration is None:
             # If the user has never been allowed access, we return a 403 Forbidden response
             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
-        if user.allow_access and user.allow_access_expiration > timezone.now():
+        if user.allow_access_expiration > timezone.now() and user.certificate.revoked is True:
             certificates_symmetric_key = user.certificates_symmetric_key.hex()
             return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
         else: 
@@ -211,7 +211,7 @@ def allow_access_to_user(request, uuid:uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        user.allow_access = True
+        user.has_attended = True
         user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
         user.save()
         return Response({'message': 'The user can now get the key.'}, status=status.HTTP_200_OK)

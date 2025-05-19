@@ -88,7 +88,7 @@ class WifiUser(models.Model):
     certificate = models.ForeignKey(MyCustomCert, on_delete=models.SET_NULL, blank=False, null=True)
     user_uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4) 
     certificates_symmetric_key = models.BinaryField(max_length=32, blank=True, null=True)
-    allow_access = models.BooleanField(default=False)
+    has_attended = models.BooleanField(default=False)
     allow_access_expiration = models.DateTimeField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
@@ -121,7 +121,7 @@ class WifiUser(models.Model):
                 self.wifiLocation != original.wifiLocation):
                 # If any of these fields changed, we need to create a new certificate
                 self.certificate = None
-                self.allow_access = False
+                self.has_attended = False
        
         # Check if the certificate doesnt exist (the user is new/an important field changed)
         if not self.certificate:
@@ -153,7 +153,6 @@ class WifiUser(models.Model):
         from getEAP_TLS.radius.radius_certs import mark_ssid_to_update_crl # Import here to avoid circular import
         if self.certificate:
             self.certificate.revoke()
-            self.allow_access = False
             self.save()
             # Export the new CRL
             mark_ssid_to_update_crl(self.wifiLocation)
@@ -174,8 +173,8 @@ class WifiNetworkLocation(models.Model):
     location = models.CharField(max_length=64, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     brief_description = models.TextField(blank=True, null=True)
-    start_date = models.DateField(blank=True, null=True)
-    end_date = models.DateField(blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True, default=date.today)
+    end_date = models.DateField(blank=True, null=True, default = date.today() + timedelta(days=10*365+2))
     form_link = models.URLField(blank=True, null=True)
     is_registration_open = models.BooleanField(default=True)
     is_enabled_in_radius = models.BooleanField(default=True)
@@ -189,13 +188,6 @@ class WifiNetworkLocation(models.Model):
 
     def save(self, *args, **kwargs):
         from getEAP_TLS.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
-        # Establish default values for start and end dates:
-        if not self.start_date:
-            self.start_date = date.today()
-
-        if not self.end_date:
-            self.end_date = self.start_date + timedelta(days=10*365+2)
-
         
         if not self.location_uuid:
             while True:
@@ -218,6 +210,10 @@ class WifiNetworkLocation(models.Model):
                     export_certificates(self)
                 else:
                     mark_ssid_for_deletion(self)
+            if original.SSID != self.SSID and self.is_enabled_in_radius:
+                # If the SSID changed, we need to change the configuration in the radius server
+                mark_ssid_for_deletion(original)
+                export_certificates(self)
 
         if not self.certificates_CA:
             # Create the CA for the certificates
