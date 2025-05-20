@@ -92,6 +92,36 @@ class WifiUser(models.Model):
     allow_access_expiration = models.DateTimeField(blank=True, null=True)
     has_downloaded_pass = models.BooleanField(default=False)
 
+    def create_certificate(self, update:bool = False):
+        """
+        Create a certificate for the user
+        """
+        from getEAP_TLS.utils import send_mail
+        if not self.wifiLocation:
+            raise ValueError("WifiLocation is required to create a certificate.")
+        
+        if self.certificate and self.certificate.revoked:
+            raise ValueError("The existing certificate is revoked. Cannot create a new certificate.")
+
+        # Get the certificate's CA from the wifi location
+        ca = self.wifiLocation.certificates_CA
+
+        # Create the certificate
+        cert = MyCustomCert.objects.create(
+            name=f"{self.name}'s Certificate",
+            ca=ca,
+            common_name=self.name,
+            email=self.email,
+            validity_start=ca.validity_start,
+            validity_end=ca.validity_end,
+        )
+
+        self.certificate = cert
+        send_mail(self, update=update)
+        
+        super().save()
+        
+
     def save(self, *args, **kwargs):
         from getEAP_TLS.utils import send_mail # Import here to avoid circular import
         if not self.wifiLocation:
@@ -111,7 +141,6 @@ class WifiUser(models.Model):
         if not self.certificates_symmetric_key:
             self.certificates_symmetric_key = secrets.token_bytes(32)
 
-
         # Check if the name, id_document, email or wifiLocation changed: 
         # If any of these fields changed, we need to create a new certificate
         if self.pk and WifiUser.objects.filter(pk=self.pk).exists():
@@ -121,27 +150,12 @@ class WifiUser(models.Model):
                 self.email != original.email or
                 self.wifiLocation != original.wifiLocation):
                 # If any of these fields changed, we need to create a new certificate
-                self.certificate = None
-                self.has_attended = False
+                self.create_certificate(update=True)
        
-        # Check if the certificate doesnt exist (the user is new/an important field changed)
+        # Check if the certificate doesnt exist (the user is new)
         if not self.certificate:
-            # Get the certificate's CA from the wifi location
-            ca = self.wifiLocation.certificates_CA
-
-            # Create the certificate
-            cert = MyCustomCert.objects.create(
-                name=f"{self.name}'s Certificate",
-                ca=ca,
-                common_name=self.name,
-                email=self.email,
-                validity_start=ca.validity_start,
-                validity_end=ca.validity_end,
-            )
-
-            self.certificate = cert
-            send_mail(self)
-        
+            self.create_certificate(update=False)
+            
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -187,9 +201,25 @@ class WifiNetworkLocation(models.Model):
     radius_Certificate = models.ForeignKey(MyCustomCert, on_delete=models.SET_NULL, blank=False, null=True)
     location_uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
 
+    def create_ca_certificates(self):
+        ca = MyCustomCA()
+        ca.name=f"{self.name}'s CA"    
+        ca.common_name=self.name
+        ca.validity_start=self.start_date
+        ca.validity_end=self.end_date
+        ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
+        ca.save()
+        self.certificates_CA = ca
+        
+        for user in WifiUser.objects.filter(wifiLocation=self):
+            try:
+                user.create_certificate(update=True)
+            except Exception as e:
+                pass
     def save(self, *args, **kwargs):
         from getEAP_TLS.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
         
+        # If the location_uuid is not set, we need to generate a new one
         if not self.location_uuid:
             while True:
                 # Generate a new UUID
@@ -199,35 +229,24 @@ class WifiNetworkLocation(models.Model):
                     self.location_uuid = new_uuid
                     super().save(*args, **kwargs)
                     break
+                    
+        updated = False
 
+        # Check if the name, start date or end date changed:
         original = WifiNetworkLocation.objects.filter(location_uuid=self.location_uuid).first()
         if original:
             if original.name != self.name or original.start_date != self.start_date or  original.end_date != self.end_date:
                 # If the name, start date or end date changed, we need to create a new CA and server certificates
-                self.certificates_CA = None
-                self.radius_Certificate = None
-            if self.is_enabled_in_radius != original.is_enabled_in_radius:
-                if self.is_enabled_in_radius:
-                    export_certificates(self)
-                else:
-                    mark_ssid_for_deletion(self)
-            if original.SSID != self.SSID and self.is_enabled_in_radius:
-                # If the SSID changed, we need to change the configuration in the radius server
-                mark_ssid_for_deletion(original)
-                export_certificates(self)
+                updated = True
 
-        if not self.certificates_CA:
-            # Create the CA for the certificates
-            ca = MyCustomCA()
-            ca.name=f"{self.name}'s CA"    
-            ca.common_name=self.name
-            ca.validity_start=self.start_date
-            ca.validity_end=self.end_date
-            ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
-            ca.save()
-            self.certificates_CA = ca
+        # Check if the CA certificate exists, if not create it
+        if not self.certificates_CA or updated:
+            # Create/update the CA certificate
+            self.create_ca_certificates()
 
-        if self.certificates_CA and not self.radius_Certificate:
+        ca = self.certificates_CA
+        
+        if (ca and not self.radius_Certificate) or updated:
             # Create the radius certificate
             radius_cert = MyCustomCert.objects.create(
                 name=f"{self.name}'s Radius Certificate",
@@ -238,10 +257,21 @@ class WifiNetworkLocation(models.Model):
             )
 
             self.radius_Certificate = radius_cert
-            
-            if self.is_enabled_in_radius:
-                export_certificates(self)
 
+            # We export the certificates to the radius server
+            if self.is_enabled_in_radius:
+                if updated:
+                    mark_ssid_for_deletion(original)
+                export_certificates(self)
+            
+        if original:
+            if self.is_enabled_in_radius != original.is_enabled_in_radius:
+                if self.is_enabled_in_radius:
+                    export_certificates(self)
+                else:
+                    mark_ssid_for_deletion(original)
+        
+        
         super().save(*args, **kwargs)
 
     def __str__(self):

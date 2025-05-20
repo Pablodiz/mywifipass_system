@@ -26,7 +26,7 @@ def generate_qr_code(data: str) -> BytesIO:
     return buffer
 
 
-def send_mail(user: WifiUser):
+def send_mail(user: WifiUser, update: bool = False) -> None:
     from getEAP_TLS.api.urls import user_qr_url, user_url # Import here to avoid circular import
     html_content = render_to_string(
         "getEAP_TLS/email/register_email.html",
@@ -36,8 +36,13 @@ def send_mail(user: WifiUser):
             "pass_url": user_url(user.user_uuid)      
         },
     )
+
+    subject_text = "Your registration for the event: " + user.wifiLocation.name
+    if update:
+        subject_text = "Your registration has been updated for the event: " + user.wifiLocation.name
+
     mail = EmailMultiAlternatives(
-        subject="Your registration for the event: " + user.wifiLocation.name,
+        subject=subject_text,
         body="",
         from_email=None, 
         to=[user.email],

@@ -26,6 +26,14 @@ class WifiUserAdmin(ModelAdmin):
     list_filter = ["wifiLocation"]
     list_editable = ["has_downloaded_pass"]
 
+    def has_change_permission(self, request, obj=None):
+        if obj and obj.certificate and obj.certificate.revoked:
+            if not hasattr(request, '_revoked_message_shown'):
+                self.message_user(request, "Certificate is revoked. Cannot change user.", level=messages.ERROR)
+                request._revoked_message_shown = True
+            return False
+        return super().has_change_permission(request, obj)
+
     def show_qr_button(self, obj:WifiUser):
         return format_html(
             '<a class="button" style="display: inline-block;text-align: center" href="{}">Show QR</a>',
