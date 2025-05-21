@@ -2,15 +2,15 @@ services:
   djangox509:
     build:
       context: . # Because i need to copy this whole directory inside
-      dockerfile: Dockerfile_getEAP_TLS 
+      dockerfile: Dockerfile_mywifipass 
     container_name: webapp
     volumes:
-      - shared-certs:/djangox509/getEAP_TLS/server_certs
-      - webapp_secrets:/djangox509/getEAP_TLS/secrets
-      - logos:/djangox509/getEAP_TLS/logos
+      - shared-certs:/djangox509/mywifipass/server_certs
+      - webapp_secrets:/djangox509/mywifipass/secrets
+      - logos:/djangox509/mywifipass/logos
     ports:
       - "${WEBAPP_PORT}:8000"
-    working_dir: /djangox509/getEAP_TLS
+    working_dir: /djangox509/mywifipass
     networks:
       - our_network
     depends_on:
