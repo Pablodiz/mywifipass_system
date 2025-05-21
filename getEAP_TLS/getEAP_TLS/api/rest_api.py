@@ -193,6 +193,10 @@ def check_user(request, user_uuid:uuid):
         except Http404:
             return Response({'error': f'User with UUID {user_uuid} not found for the specified event.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Check if the user has already accessed the event
+        if user.has_attended:
+            return Response({'error': 'User has already accessed the event.'}, status=status.HTTP_403_FORBIDDEN)
+
         return Response({
             'id_document': user.id_document,
             'name': user.name,
