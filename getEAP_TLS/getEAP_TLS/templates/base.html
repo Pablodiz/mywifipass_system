@@ -9,6 +9,7 @@
     <link href="{% static 'css/styles.css' %}" rel="stylesheet">
 </head>
 <body>
+    {% block header %}
     <header class="header">
         <div class="header-container">
             <div class="logo">MyWifiPass</div>
@@ -17,7 +18,7 @@
             </a>
         </div>
     </header>
-    
+    {% endblock %}
 
     {% if breadcrumbs %}
     <nav> 
