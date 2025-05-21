@@ -95,8 +95,9 @@ class WifiUserAdmin(ModelAdmin):
                 if errors:
                     self.message_user(request, f"Errors occurred: {'; '.join(errors)}", level="error")
                 return HttpResponseRedirect(reverse('admin:mywifipass_wifiuser_changelist'))
+        else:
+            form = CSVImportForm()
         
-        form = CSVImportForm()
         context = self.admin_site.each_context(request)
         context['form'] = form
         context['title'] = "Import WifiUsers from CSV"

@@ -115,12 +115,8 @@ class WifiUser(models.Model):
             validity_start=ca.validity_start,
             validity_end=ca.validity_end,
         )
-
-        self.certificate = cert
         send_mail(self, update=update)
-        
-        super().save()
-        
+        return cert         
 
     def save(self, *args, **kwargs):
         from mywifipass.utils import send_mail # Import here to avoid circular import
@@ -150,11 +146,11 @@ class WifiUser(models.Model):
                 self.email != original.email or
                 self.wifiLocation != original.wifiLocation):
                 # If any of these fields changed, we need to create a new certificate
-                self.create_certificate(update=True)
+                self.certificate = self.create_certificate(update=True)
        
         # Check if the certificate doesnt exist (the user is new)
         if not self.certificate:
-            self.create_certificate(update=False)
+            self.certificate = self.create_certificate(update=False)
             
         super().save(*args, **kwargs)
 
@@ -213,9 +209,11 @@ class WifiNetworkLocation(models.Model):
         
         for user in WifiUser.objects.filter(wifiLocation=self):
             try:
-                user.create_certificate(update=True)
+                user.certificate = user.create_certificate(update=True)
+                user.save()
             except Exception as e:
                 pass
+
     def save(self, *args, **kwargs):
         from mywifipass.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
         
