@@ -1,0 +1,238 @@
+:root {
+    --primary-color: #006A71;
+    --secondary-color: #9ACBD0;
+    --tertiary-color: #48A6A7;
+    --background-color: #F2EFE7;
+    --hover-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+    --card-border-radius: 10px;
+}
+
+body {
+    background-color: var(--background-color);
+    font-family: 'Arial', sans-serif;
+}
+
+.hover-card {
+    transition: transform 0.3s;
+}
+
+.hover-card:hover {
+    transform: scale(1.03);
+    box-shadow: var(--hover-shadow);
+}
+
+.card {
+    background: var(--secondary-color);
+}
+
+.my-text-primary {
+    color: var(--primary-color);
+}
+
+
+/* Button stylings */
+.my-button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.my-button:hover {
+    background-color: var(--tertiary-color);
+}
+
+/* Event Styles */
+
+.event-header {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    padding: 20px;
+}
+
+.event-icon {
+    width: 50px;
+    height: 50px;
+    margin-right: 25px;
+    
+}
+
+.event-title {
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: bold;
+    position: relative;
+}
+
+/* Line under the title */
+.event-title::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 40px;
+    height: 4px;
+    background-color: var(--tertiary-color);
+    border-radius: 2px;
+}
+
+.event-details {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.details-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.details-list li {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    line-height: 1.4;
+}
+
+.detail-icon {
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.detail-label {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-right: 5px;
+}
+
+.detail-value {
+    color: var(--primary-color);
+}
+
+/* Form stylings */
+.event-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: var(--card-border-radius);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--secondary-color);
+}
+
+.label-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.my-form {
+    margin-top: 20px;
+}
+
+.form-fields {
+    margin-bottom: 20px;
+}
+
+.my-form label {
+    color: var(--primary-color);
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.my-form input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid var(--secondary-color);
+    border-radius: 8px;
+    background-color: var(--background-color);
+    margin-bottom: 15px;
+}
+
+.my-form input:focus {
+    outline: none;
+    border-color: var(--tertiary-color);
+}
+
+.my-form p {
+    margin-bottom: 15px;
+}
+
+.header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-container {
+    max-width: 1350px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Container for the breadcrumb */
+.breadcrumb {
+    display: flex;
+    list-style: none;
+    margin: 1rem 0;
+    padding: 0.5rem 2rem;
+    background-color: white;
+    border-radius: var(--card-border-radius);
+    max-width: 1350px;
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--secondary-color);
+}
+
+/* Styles for the breadcrumb elements */
+.breadcrumb li {
+    display: flex;
+    align-items: center;
+}
+
+/* Separators between breadcrumb items */
+.breadcrumb li:not(:last-child)::after {
+    content: "/";
+    margin: 0 0.5rem;
+    color: var(--tertiary-color);
+}
+
+.breadcrumb a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb .active {
+    color: var(--tertiary-color);
+    font-weight: 500;
+}
+
+.custom-container {
+    width: 100%;
+    max-width: 1350px; 
+    margin-right: auto;
+    margin-left: auto;
+}
+  

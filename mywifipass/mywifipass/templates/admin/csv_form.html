@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <form method="post" enctype="multipart/form-data" style="margin-top: 2em; ">
+    {% csrf_token %}
+    <div class="form-row">
+      {{ form.wifiLocation.label_tag }}
+      {{ form.wifiLocation }}
+    </div>   
+    <div class="form-row">
+      Select a CSV file:
+      <label for="id_csv_file" class="button">
+          Upload
+      </label>
+      {% if form.csv_file.help_text %}
+        <p class="help">{{ form.csv_file.help_text }}</p>
+      {% endif %}    
+    </div>
+    <!-- Hide the original input, which is ugly -->
+    <style>
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+    {{ form.csv_file }}
+
+    <div class="submit-row">
+      <button type="submit" class="button">Confirm</button>
+    </div>
+  </form>
+{% endblock %}

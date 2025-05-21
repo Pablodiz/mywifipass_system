@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="custom-container">
+    {% for location in locations %}
+      {% if location.is_visible_in_web %} 
+        <div class="event-container hover-card">
+          <a href="{% url 'wifi_location_details' location.location_uuid %}" class="text-decoration-none">
+            {% include 'mywifipass/common/event_header.html' %}
+            <div class="event-details">
+              <ul class="details-list">
+                {% include 'mywifipass/common/event_details_always_present.html' %}
+                {% if location.brief_description %}
+                <li>
+                  <div class="label-container">
+                      <span class="detail-icon">📝</span>
+                      <span class="detail-label">Brief Description:</span>
+                  </div>
+                  <span class="detail-value">{{ location.brief_description }}</span>
+                </li>
+                {% endif %}
+              </ul>
+            </div>  
+          </a>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endblock %}

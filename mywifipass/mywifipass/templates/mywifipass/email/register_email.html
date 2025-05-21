@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block header%}
+{% endblock %}
+{% block content %}
+<div class="event-container">
+
+  
+  {% include 'mywifipass/common/event_details.html' %}
+
+  <!-- QR and URL for the pass -->
+    <div class="qr-code">
+      <img src="{{ qr_code_url }}" alt="QR Code" style="width: 200px; height: 200px;"/>
+      <p>Scan to register</p>
+      <p>or visit: <a href="{{ pass_url }}">{{ pass_url }}</a></p>  
+</div>
+{% endblock %}
