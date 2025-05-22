@@ -16,6 +16,8 @@ urlpatterns = [
     path('events/', view=mywifipass.views.wifi_network_locations_list, name="events"),
     path('events/<uuid:location_uuid>/', view=mywifipass.views.wifi_location_details, name="wifi_location_details"),
     path('events/<uuid:location_uuid>/register', view=mywifipass.views.wifi_user_autoregistration, name="wifi_user_autoregistration"),
+    path('events/<uuid:location_uuid>/confirmation', view=mywifipass.views.wifi_user_registration_done, name="register_confirmation"),
+
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

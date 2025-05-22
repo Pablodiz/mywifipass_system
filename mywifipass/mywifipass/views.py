@@ -1,7 +1,7 @@
 from mywifipass.models import WifiNetworkLocation
 from mywifipass.forms import WifiUserForm 
 from django.http import HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
 from mywifipass.utils import generate_qr_code
 from mywifipass.api.auth_model import LoginToken
@@ -42,7 +42,7 @@ def wifi_user_autoregistration(request, location_uuid):
             # Set the wifiLocation field to the event
             wifi_user.wifiLocation = event
             wifi_user = form.save()
-            return HttpResponseRedirect("../")
+            return redirect('register_confirmation', location_uuid=event.location_uuid)
     else:
         form = WifiUserForm()
 
@@ -69,3 +69,16 @@ def admin_qr_view(request):
     json_data = json.dumps(data) 
     qr_img = generate_qr_code(str(json_data))  
     return HttpResponse(qr_img, content_type='image/png')   
+
+
+def wifi_user_registration_done(request, location_uuid):
+    """View for displaying the registration done page."""
+    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
+    
+    breadcrumbs = [
+        {"name": "Home", "url": "/"},
+        {"name": "Active events", "url": "/events/"},
+        {"name": "Registration confirm", "url": f"/events/{location_uuid}/confirmation"}
+    ]
+    
+    return render(request, "mywifipass/wifiuser/confirmation.html", {"location": event, "breadcrumbs": breadcrumbs})
