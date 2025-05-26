@@ -233,8 +233,9 @@ class WifiNetworkLocation(models.Model):
             common_name=self.name,
             validity_start=self.start_date,
             validity_end=self.end_date,
-            crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
         )
+        ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
+
         ca.save()
 
         self.certificates_CA = ca
