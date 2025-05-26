@@ -210,7 +210,7 @@ def allow_access_to_user(request, uuid:uuid):
         if (user.certificate and user.certificate.revoked is False) or (user.certificate is None):
             user.has_attended = True
             user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
-            user.save()
+            user.save(send_email = False)
         else: 
             return Response({'error': 'User certificate is revoked.'}, status=status.HTTP_403_FORBIDDEN)
         return Response({'message': 'The user can now join the network.'}, status=status.HTTP_200_OK)
@@ -294,7 +294,7 @@ def has_downloaded_pass(request, user_uuid:uuid):
     try:
         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         user.has_downloaded_pass = True
-        user.save()
+        user.save(send_email = False)
         return Response({'message': 'The user has downloaded the pass.'}, status=status.HTTP_200_OK)
     except serializers.ValidationError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -324,7 +324,7 @@ def generate_certificates(request, user_uuid: uuid):
             # If the user is allowed access, we generate the x509 certificate for the user and return it
             customcert, certificate_pem, private_key_pem = user.create_certificate()
             user.certificate = customcert
-            user.save()             
+            user.save(send_email = False)             
             return Response({
                                 'certificate_pem': certificate_pem,
                                 'private_key_pem': private_key_pem, 

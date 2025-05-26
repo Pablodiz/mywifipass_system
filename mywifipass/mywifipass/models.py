@@ -123,8 +123,8 @@ class WifiUser(models.Model):
         if not self.wifiLocation:
             raise ValueError("WifiNetworkLocation is required to create a certificate.")
         
-        if self.certificate and self.certificate.revoked:
-            raise ValueError("The existing certificate is revoked. Cannot create a new certificate.")
+        if self.certificate:
+            self.revoke_certificate()
 
         # Get the certificate's CA from the wifi location
         ca = self.wifiLocation.certificates_CA
@@ -143,7 +143,7 @@ class WifiUser(models.Model):
         
         return cert, certificate_pem, private_key_pem         
 
-    def save(self, *args, **kwargs):
+    def save(self, send_email: bool = True, *args, **kwargs):
         from mywifipass.utils import send_mail
         if not self.wifiLocation:
             raise ValueError("WifiNetworkLocation is required to create a WifiUser.")
@@ -179,8 +179,8 @@ class WifiUser(models.Model):
                 self.certificate.revoke()
                 self.certificate = None
                 update = True
-
-        send_mail(self, update=update)
+        if send_email:
+            send_mail(self, update=update)
             
         super().save(*args, **kwargs)
 
@@ -194,7 +194,7 @@ class WifiUser(models.Model):
         from mywifipass.radius.radius_certs import mark_ssid_to_update_crl # Import here to avoid circular import
         if self.certificate:
             self.certificate.revoke()
-            self.save()
+            self.save(send_email=False)  
             # Export the new CRL
             mark_ssid_to_update_crl(self.wifiLocation)
         else:
