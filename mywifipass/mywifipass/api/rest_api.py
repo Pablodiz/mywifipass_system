@@ -66,6 +66,7 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'description': wifiNetworkLocation.description,
         'location_name': wifiNetworkLocation.name,
         'location_uuid': wifiNetworkLocation.location_uuid,
+        'certificates_symmetric_key': wifiuser.certificates_symmetric_key.hex(),
         'validation_url': urls.validation_url(wifiuser.user_uuid),
         'certificates_url': urls.certificates_url(wifiuser.user_uuid),
         'has_downloaded_url': urls.has_downloaded_url(wifiuser.user_uuid),
