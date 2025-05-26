@@ -326,14 +326,13 @@ def generate_certificates(request, user_uuid: uuid):
             # Convert PEM to objects
             cert = x509.load_pem_x509_certificate(certificate_pem.encode())
             key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
-            ca_cert = x509.load_pem_x509_certificate(user.wifiLocation.certificates_CA.certificate.encode())
 
             # Create PKCS#12
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=b"wifiuser",
                 key=key,
                 cert=cert,
-                cas=[ca_cert],
+                cas=[],
                 encryption_algorithm=NoEncryption() 
             )
 
@@ -341,7 +340,8 @@ def generate_certificates(request, user_uuid: uuid):
             p12_b64 = base64.b64encode(p12_bytes).decode()
 
             return Response({
-                'pkcs12_b64': p12_b64
+                'pkcs12_b64': p12_b64, 
+                'ca_certificate_pem': user.wifiLocation.certificates_CA.certificate
                 }, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
