@@ -183,3 +183,4 @@ BASE_URL = f"{http_header}{DOMAIN}/"
 
 # Configure the usage of a reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+EMAIL_TIMEOUT = 5 

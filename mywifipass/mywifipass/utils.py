@@ -48,4 +48,4 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
         to=[user.email],
     )
     mail.attach_alternative(html_content, "text/html")
-    mail.send()
+    mail.send(fail_silently=True)
