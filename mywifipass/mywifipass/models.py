@@ -120,9 +120,8 @@ class WifiUser(models.Model):
 
         Returns the MyCustomCert object, the certificate and the private key
         """
-        from mywifipass.utils import send_mail
         if not self.wifiLocation:
-            raise ValueError("WifiLocation is required to create a certificate.")
+            raise ValueError("WifiNetworkLocation is required to create a certificate.")
         
         if self.certificate and self.certificate.revoked:
             raise ValueError("The existing certificate is revoked. Cannot create a new certificate.")
@@ -141,12 +140,12 @@ class WifiUser(models.Model):
         )
 
         certificate, private_key = cert.save(return_cert_fields=True)
-        #send_mail(self, update=update)
         return cert, certificate, private_key         
 
     def save(self, *args, **kwargs):
+        from mywifipass.utils import send_mail
         if not self.wifiLocation:
-            raise ValueError("WifiLocation is required to create a certificate.")
+            raise ValueError("WifiNetworkLocation is required to create a WifiUser.")
         
         # Generate a UUID for the user if it doesn't exist
         if not self.user_uuid:
@@ -162,20 +161,25 @@ class WifiUser(models.Model):
         if not self.certificates_symmetric_key:
             self.certificates_symmetric_key = secrets.token_bytes(32)
 
-        # Check if the name, id_document, email or wifiLocation changed: 
-        # If any of these fields changed, we need to create a new certificate
-        if self.pk and WifiUser.objects.filter(pk=self.pk).exists():
+        super().save(*args, **kwargs)        
+        # Check if the certificate exists
+        # If it does, check if the name, id_document, email or wifiLocation changed: 
+        # If any of these fields changed, revoke the old one, remove the cert from the user and send a mail 
+        # telling the user that the certificate was revoked and they should contact the organization
+        update = False
+        
+        if self.certificate: 
             original = WifiUser.objects.get(user_uuid=self.user_uuid)
             if (self.name != original.name or
-                self.id_document != original.id_document or
-                self.email != original.email or
-                self.wifiLocation != original.wifiLocation):
-                # If any of these fields changed, we need to create a new certificate
-                self.certificate = self.create_certificate(update=True)
-       
-        # Check if the certificate doesnt exist (the user is new)
-        if not self.certificate:
-            self.certificate = self.create_certificate(update=False)
+                    self.id_document != original.id_document or
+                    self.email != original.email or
+                    self.wifiLocation != original.wifiLocation):
+                # If any of these fields changed, we need to revoke the old one and send a mail 
+                self.certificate.revoke()
+                self.certificate = None
+                update = True
+
+        send_mail(self, update=update)
             
         super().save(*args, **kwargs)
 
