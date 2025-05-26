@@ -74,6 +74,28 @@ class MyCustomCert(AbstractCert):
         null=False
     )
 
+    def save(self, *args, return_cert_fields=False, **kwargs):
+        generate = False
+        if not self.pk:
+            generate = True
+        super().save(*args, **kwargs) #generate the pk 
+        if generate:
+            # Automatically determine serial number
+            if not self.serial_number:
+                self.serial_number = self._generate_serial_number()
+            self._generate()
+            cert = self.certificate
+            key = self.private_key
+            # Clean the fields to avoid saving the cert and key in the database
+            self.certificate = ''
+            self.private_key = ''
+            kwargs['force_insert'] = False
+            super().save(*args, **kwargs)
+            if return_cert_fields:
+                return cert, key
+        if return_cert_fields:
+            return self.certificate, self.private_key
+
 class WifiUser(models.Model):
     """
     Model that represents a user that will be granted access to a wifi network
@@ -92,9 +114,11 @@ class WifiUser(models.Model):
     allow_access_expiration = models.DateTimeField(blank=True, null=True)
     has_downloaded_pass = models.BooleanField(default=False)
 
-    def create_certificate(self, update:bool = False):
+    def create_certificate(self, update:bool = False) -> tuple:
         """
         Create a certificate for the user
+
+        Returns the MyCustomCert object, the certificate and the private key
         """
         from mywifipass.utils import send_mail
         if not self.wifiLocation:
@@ -107,7 +131,7 @@ class WifiUser(models.Model):
         ca = self.wifiLocation.certificates_CA
 
         # Create the certificate
-        cert = MyCustomCert.objects.create(
+        cert = MyCustomCert(
             name=f"{self.name}'s Certificate",
             ca=ca,
             common_name=self.name,
@@ -115,11 +139,12 @@ class WifiUser(models.Model):
             validity_start=ca.validity_start,
             validity_end=ca.validity_end,
         )
-        send_mail(self, update=update)
-        return cert         
+
+        certificate, private_key = cert.save(return_cert_fields=True)
+        #send_mail(self, update=update)
+        return cert, certificate, private_key         
 
     def save(self, *args, **kwargs):
-        from mywifipass.utils import send_mail # Import here to avoid circular import
         if not self.wifiLocation:
             raise ValueError("WifiLocation is required to create a certificate.")
         
@@ -198,13 +223,15 @@ class WifiNetworkLocation(models.Model):
     location_uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
 
     def create_ca_certificates(self):
-        ca = MyCustomCA()
-        ca.name=f"{self.name}'s CA"    
-        ca.common_name=self.name
-        ca.validity_start=self.start_date
-        ca.validity_end=self.end_date
-        ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
+        ca = MyCustomCA(
+            name=f"{self.name}'s CA",
+            common_name=self.name,
+            validity_start=self.start_date,
+            validity_end=self.end_date,
+            crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
+        )
         ca.save()
+
         self.certificates_CA = ca
         
         for user in WifiUser.objects.filter(wifiLocation=self):
@@ -242,25 +269,11 @@ class WifiNetworkLocation(models.Model):
             # Create/update the CA certificate
             self.create_ca_certificates()
 
-        ca = self.certificates_CA
-        
-        if (ca and not self.radius_Certificate) or updated:
-            # Create the radius certificate
-            radius_cert = MyCustomCert.objects.create(
-                name=f"{self.name}'s Radius Certificate",
-                ca=ca,
-                common_name=self.name,
-                validity_start=ca.validity_start,
-                validity_end=ca.validity_end,
-            )
-
-            self.radius_Certificate = radius_cert
-
-            # We export the certificates to the radius server
-            if self.is_enabled_in_radius:
-                if updated:
-                    mark_ssid_for_deletion(original)
-                export_certificates(self)
+        # If enabled, we generate and export the certificates to the radius server
+        if self.is_enabled_in_radius:
+            if updated:
+                mark_ssid_for_deletion(original)
+            export_certificates(self)
             
         if original:
             if self.is_enabled_in_radius != original.is_enabled_in_radius:
