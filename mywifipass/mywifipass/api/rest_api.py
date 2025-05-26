@@ -24,7 +24,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from mywifipass.api.auth_model import LoginToken
 
-from cryptography.hazmat.primitives.serialization import pkcs12, Encoding, NoEncryption
+from cryptography.hazmat.primitives.serialization import pkcs12, Encoding, BestAvailableEncryption
 from cryptography.hazmat.primitives import serialization
 from cryptography import x509
 import base64
@@ -333,7 +333,7 @@ def generate_certificates(request, user_uuid: uuid):
                 key=key,
                 cert=cert,
                 cas=[],
-                encryption_algorithm=NoEncryption() 
+                encryption_algorithm=BestAvailableEncryption(user.certificates_symmetric_key)
             )
 
             # Encode as base64 for transport
