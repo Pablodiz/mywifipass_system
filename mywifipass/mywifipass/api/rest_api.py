@@ -35,7 +35,6 @@ def cipher_AES_256_ECB(plaintext: str, clave: bytes):
     text_cifrado = cipher.encrypt(text_padded)
     return base64.b64encode(text_cifrado)
 
-
 def replace_nulls(obj):
     if isinstance(obj, dict):
         return {k: replace_nulls(v) for k, v in obj.items()}
@@ -315,5 +314,41 @@ def has_downloaded_pass(request, user_uuid:uuid):
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Http404: 
         return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+def generate_certificates(request, user_uuid: uuid):
+    """
+    Handles the HTTP request to generate certificates for a WifiUser.
+    
+    Args:
+        request: The HTTP request object.
+        user_uuid (uuid): The UUID of the WifiUser.
+    
+    Returns:
+        Response: A response indicating whether the certificates were generated or not.
+    """
+    try:
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
+        if user.allow_access_expiration is None:
+            # If the user has never been allowed access, we return a 403 Forbidden response
+            return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
+        if user.allow_access_expiration > timezone.now() and user.certificate.revoked is False:
+            # If the user is allowed access, we generate the x509 certificate for the user and return it
+            customcert, certificate_pem, private_key_pem = user.create_certificate()
+            user.certificate = customcert
+            user.save()             
+            return Response({
+                                'certificate_pem': certificate_pem,
+                                'private_key_pem': private_key_pem
+                            },       
+                            status=status.HTTP_200_OK
+                        )
+        else: 
+            # If the user is not allowed access anymore, no password is return, instead we return a 403 Forbidden response
+            return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
+    except Http404: 
+        return Response({'error': 'User with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

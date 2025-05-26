@@ -114,7 +114,7 @@ class WifiUser(models.Model):
     allow_access_expiration = models.DateTimeField(blank=True, null=True)
     has_downloaded_pass = models.BooleanField(default=False)
 
-    def create_certificate(self, update:bool = False) -> tuple:
+    def create_certificate(self) -> tuple:
         """
         Create a certificate for the user
 
@@ -139,8 +139,9 @@ class WifiUser(models.Model):
             validity_end=ca.validity_end,
         )
 
-        certificate, private_key = cert.save(return_cert_fields=True)
-        return cert, certificate, private_key         
+        certificate_pem, private_key_pem = cert.save(return_cert_fields=True)
+        
+        return cert, certificate_pem, private_key_pem         
 
     def save(self, *args, **kwargs):
         from mywifipass.utils import send_mail
@@ -237,13 +238,13 @@ class WifiNetworkLocation(models.Model):
         ca.save()
 
         self.certificates_CA = ca
-        
-        for user in WifiUser.objects.filter(wifiLocation=self):
-            try:
-                user.certificate = user.create_certificate(update=True)
-                user.save()
-            except Exception as e:
-                pass
+        #TODO think about this        
+        # for user in WifiUser.objects.filter(wifiLocation=self):
+        #     try:
+        #         user.certificate = user.create_certificate()
+        #         user.save()
+        #     except Exception as e:
+        #         pass
 
     def save(self, *args, **kwargs):
         from mywifipass.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
