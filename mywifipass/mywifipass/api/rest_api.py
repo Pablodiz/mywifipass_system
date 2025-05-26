@@ -53,23 +53,11 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
     Returns:
         json_data: JSON object with the information of the user and the location
     """
-    try: 
-        key = wifiuser.certificates_symmetric_key
-        # Encrypt the certificates with the symmetric key
-        certificate = cipher_AES_256_ECB(wifiuser.certificate.certificate, key)
-        private_key = cipher_AES_256_ECB(wifiuser.certificate.private_key, key)
-        ca_certificate = cipher_AES_256_ECB(wifiNetworkLocation.certificates_CA.certificate, key)
-    except Exception as e:
-        raise ValueError("Error encrypting the certificates: " + str(e))
-
     json_data = {
         'user_name': wifiuser.name,
         'user_email': wifiuser.email,
         'user_id_document': wifiuser.id_document,
         'user_uuid': wifiuser.user_uuid,
-        'certificate': certificate,
-        'private_key': private_key,
-        'ca_certificate': ca_certificate,    
         'network_common_name': wifiNetworkLocation.certificates_CA.common_name,
         'ssid': wifiNetworkLocation.SSID,
         'location': wifiNetworkLocation.location,
@@ -341,7 +329,8 @@ def generate_certificates(request, user_uuid: uuid):
             user.save()             
             return Response({
                                 'certificate_pem': certificate_pem,
-                                'private_key_pem': private_key_pem
+                                'private_key_pem': private_key_pem, 
+                                'ca_certificate_pem': user.wifiLocation.certificates_CA.certificate
                             },       
                             status=status.HTTP_200_OK
                         )
