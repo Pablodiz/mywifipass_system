@@ -24,6 +24,11 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth.models import User
 from mywifipass.api.auth_model import LoginToken
 
+from cryptography.hazmat.primitives.serialization import pkcs12, Encoding, NoEncryption
+from cryptography.hazmat.primitives import serialization
+from cryptography import x509
+import base64
+
 
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
@@ -307,35 +312,40 @@ def has_downloaded_pass(request, user_uuid:uuid):
 def generate_certificates(request, user_uuid: uuid):
     """
     Handles the HTTP request to generate certificates for a WifiUser.
-    
-    Args:
-        request: The HTTP request object.
-        user_uuid (uuid): The UUID of the WifiUser.
-    
-    Returns:
-        Response: A response indicating whether the certificates were generated or not.
+    Returns a PKCS#12 file (base64-encoded) containing the user's certificate, private key, and CA.
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if user.allow_access_expiration is None:
-            # If the user has never been allowed access, we return a 403 Forbidden response
             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
         if user.allow_access_expiration > timezone.now():
-            # If the user is allowed access, we generate the x509 certificate for the user and return it
             customcert, certificate_pem, private_key_pem = user.create_certificate()
             user.certificate = customcert
-            user.save(send_email = False)             
+            user.save(send_email=False)
+
+            # Convert PEM to objects
+            cert = x509.load_pem_x509_certificate(certificate_pem.encode())
+            key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+            ca_cert = x509.load_pem_x509_certificate(user.wifiLocation.certificates_CA.certificate.encode())
+
+            # Create PKCS#12
+            p12_bytes = pkcs12.serialize_key_and_certificates(
+                name=b"wifiuser",
+                key=key,
+                cert=cert,
+                cas=[ca_cert],
+                encryption_algorithm=NoEncryption() 
+            )
+
+            # Encode as base64 for transport
+            p12_b64 = base64.b64encode(p12_bytes).decode()
+
             return Response({
-                                'certificate_pem': certificate_pem,
-                                'private_key_pem': private_key_pem, 
-                                'ca_certificate_pem': user.wifiLocation.certificates_CA.certificate
-                            },       
-                            status=status.HTTP_200_OK
-                        )
-        else: 
-            # If the user is not allowed access anymore, no password is return, instead we return a 403 Forbidden response
+                'pkcs12_b64': p12_b64
+                }, status=status.HTTP_200_OK)
+        else:
             return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
-    except Http404: 
-        return Response({'error': 'User with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Http404:
+        return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
