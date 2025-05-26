@@ -67,7 +67,7 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'location_name': wifiNetworkLocation.name,
         'location_uuid': wifiNetworkLocation.location_uuid,
         'validation_url': urls.validation_url(wifiuser.user_uuid),
-        'certificates_symmetric_key_url': urls.certificates_symmetric_key_url(wifiuser.user_uuid),
+        'certificates_url': urls.certificates_url(wifiuser.user_uuid),
         'has_downloaded_url': urls.has_downloaded_url(wifiuser.user_uuid),
     }
     return replace_nulls(json_data)
@@ -76,15 +76,12 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
 def user(request, uuid: uuid):
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        if user.certificate.revoked is False:
-            if user.has_downloaded_pass is False: 
-                wifiLocation = user.wifiLocation
-                data = get_certificate_information(user, wifiLocation)
-                return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
-            else: 
-                return Response({'error': 'User has already downloaded the pass'}, status=status.HTTP_403_FORBIDDEN)
+        if user.has_downloaded_pass is False: 
+            wifiLocation = user.wifiLocation
+            data = get_certificate_information(user, wifiLocation)
+            return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
         else: 
-            return Response({'error': 'User cannot access this resource'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'User has already downloaded the pass'}, status=status.HTTP_403_FORBIDDEN)
     except Http404: 
         return Response({'error': 'User with UUID ' + str(uuid)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
@@ -209,13 +206,13 @@ def allow_access_to_user(request, uuid:uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=uuid)
-        if (user.certificate.revoked is False):
+        if (user.certificate and user.certificate.revoked is False) or (user.certificate is None):
             user.has_attended = True
             user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
             user.save()
         else: 
             return Response({'error': 'User certificate is revoked.'}, status=status.HTTP_403_FORBIDDEN)
-        return Response({'message': 'The user can now get the key.'}, status=status.HTTP_200_OK)
+        return Response({'message': 'The user can now join the network.'}, status=status.HTTP_200_OK)
     except serializers.ValidationError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Http404: 
@@ -305,7 +302,7 @@ def has_downloaded_pass(request, user_uuid:uuid):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
-
+@api_view(['GET'])
 def generate_certificates(request, user_uuid: uuid):
     """
     Handles the HTTP request to generate certificates for a WifiUser.
@@ -322,7 +319,7 @@ def generate_certificates(request, user_uuid: uuid):
         if user.allow_access_expiration is None:
             # If the user has never been allowed access, we return a 403 Forbidden response
             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
-        if user.allow_access_expiration > timezone.now() and user.certificate.revoked is False:
+        if user.allow_access_expiration > timezone.now():
             # If the user is allowed access, we generate the x509 certificate for the user and return it
             customcert, certificate_pem, private_key_pem = user.create_certificate()
             user.certificate = customcert

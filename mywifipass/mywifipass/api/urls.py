@@ -7,12 +7,12 @@ import uuid
 urlpatterns = [
     path(USER_PATH + "<uuid:uuid>/", rest_api.user, name='user-data'),
     path("user_qr/" + "<uuid:uuid>/", rest_api.user_qr, name='user-qr'),
-    path(USER_PATH + "<uuid:uuid>/key", rest_api.user_key, name='user-key'),
     path('login/password', authtoken_views.obtain_auth_token, name = 'api-password-auth'),
     path('login/token', rest_api.obtain_auth_token_username_token, name = 'api-token-auth'),
     path(USER_PATH + "<uuid:uuid>/authorize", rest_api.allow_access_to_user, name='authorize-user'),
     path(USER_PATH + "<uuid:user_uuid>/validate", rest_api.check_user, name='check-user'),
     path(USER_PATH + "<uuid:user_uuid>/downloaded", rest_api.has_downloaded_pass, name='downloaded'),
+    path(USER_PATH + "<uuid:user_uuid>/certificates", rest_api.generate_certificates, name='generate-certificates'),
     path("events/<uuid:uuid>/crl", rest_api.show_crl, name='event-crl'),
 ]
 
@@ -75,3 +75,13 @@ def has_downloaded_url(user_uuid: uuid):
         url: URL where to check if the user has downloaded the pass
     """
     return user_url(user_uuid) + "/downloaded"
+
+def certificates_url(user_uuid: uuid):
+    """
+    Function to get the URL for generating and obtaining the user certificates
+    Args:
+        user_uuid: UUID of the user
+    Returns:
+        url: URL for generating and obtaining the user certificates
+    """
+    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/certificates"
