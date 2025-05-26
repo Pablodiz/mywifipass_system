@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.http import Http404, FileResponse, HttpResponse
+from django.http import Http404, FileResponse
 import uuid
 from mywifipass.models import WifiUser, WifiNetworkLocation
 from mywifipass.utils import generate_qr_code
@@ -20,15 +20,11 @@ from rest_framework.decorators import permission_classes
 
 from datetime import timedelta
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
-from django.contrib.auth.models import User
-from mywifipass.api.auth_model import LoginToken
 
-from cryptography.hazmat.primitives.serialization import pkcs12, Encoding, BestAvailableEncryption
+from cryptography.hazmat.primitives.serialization import pkcs12, BestAvailableEncryption
 from cryptography.hazmat.primitives import serialization
 from cryptography import x509
 import base64
-
 
 # Cipher AES-256 in ECB mode (without IV)
 def cipher_AES_256_ECB(plaintext: str, clave: bytes):
@@ -79,9 +75,9 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
     return replace_nulls(json_data)
 
 @api_view(['GET'])
-def user(request, uuid: uuid):
+def user(request, user_uuid: uuid):
     try:
-        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if user.has_downloaded_pass is False: 
             wifiLocation = user.wifiLocation
             data = get_certificate_information(user, wifiLocation)
@@ -89,12 +85,12 @@ def user(request, uuid: uuid):
         else: 
             return Response({'error': 'User has already downloaded the pass'}, status=status.HTTP_403_FORBIDDEN)
     except Http404: 
-        return Response({'error': 'User with UUID ' + str(uuid)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'User with UUID ' + str(user_uuid)  + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-def user_qr(request, uuid: uuid):
+def user_qr(request, user_uuid: uuid):
     """
     Handles the HTTP request to generate and return a QR code for a WifiUser.
     
@@ -106,7 +102,7 @@ def user_qr(request, uuid: uuid):
         FileResponse: A response containing the QR code image.
     """
     try:
-        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         url = urls.user_url(user.user_uuid)
         buffer = generate_qr_code(url)
         
@@ -115,12 +111,12 @@ def user_qr(request, uuid: uuid):
         response["Content-Disposition"] = "inline"  # Ensure the image is displayed in the browser
         return response
     except Http404: 
-        return Response({'error': 'User with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 @api_view(['GET'])
-def user_key(request, uuid:uuid):
+def user_key(request, user_uuid:uuid):
     """
     Handles the HTTP request to retrieve the symmetric key for a WifiUser.
     
@@ -132,7 +128,7 @@ def user_key(request, uuid:uuid):
         Response: A response containing the symmetric key or an error message.
     """
     try:
-        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if user.allow_access_expiration is None:
             # If the user has never been allowed access, we return a 403 Forbidden response
             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
@@ -143,7 +139,7 @@ def user_key(request, uuid:uuid):
             # If the user is not allowed access, no password is return, instead we return a 403 Forbidden response
             return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
     except Http404: 
-        return Response({'error': 'User with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -198,20 +194,20 @@ def check_user(request, user_uuid:uuid):
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
-def allow_access_to_user(request, uuid:uuid): 
+def allow_access_to_user(request, user_uuid:uuid): 
     """
     Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
     
     Args:
         request: The HTTP request object.
         
-        uuid (uuid): The UUID of the WifiUser.
+        user_uuid (uuid): The UUID of the WifiUser.
     
     Returns:
         Response: A response indicating whether the validation was done or not.
     """
     try:
-        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if (user.certificate and user.certificate.revoked is False) or (user.certificate is None):
             user.has_attended = True
             user.allow_access_expiration = timezone.now() + timedelta(minutes=3)  # Set expiration to 5min from now
@@ -222,69 +218,12 @@ def allow_access_to_user(request, uuid:uuid):
     except serializers.ValidationError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Http404: 
-        return Response({'error': 'User with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-def show_crl(request, uuid:uuid):
-    """
-    Handles the HTTP request to show the Certificate Revocation List (CRL) of an event.
-    
-    Args:
-        request: The HTTP request object.
-    
-    Returns:
-        Response: A response containing the CRL or an error message.
-    """
-    try:
-        event = get_object_or_404(WifiNetworkLocation, location_uuid=uuid)
-        crl = event.certificates_CA.crl
-        if crl:
-            crl_text = crl.decode('utf-8')
-            print(crl_text)
-            return HttpResponse(crl_text, content_type="text/plain", status=status.HTTP_200_OK) # We use an HttpResponse to return the CRL as a text file
-        else:
-            return Response({'error': 'No CRL found for this event.'}, status=status.HTTP_404_NOT_FOUND)
-    except Http404:
-        return Response({'error': 'Event with UUID ' + str(uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 
-@api_view(['POST'])
-def obtain_auth_token_username_token(request):
-    """
-    Handles the HTTP request to obtain a HTTP authentication token from a username and token.
-    
-    Args:
-        request: The HTTP request object.
-    
-    Returns:
-        Response: A response containing the authentication token or an error message.
-    """
-    try:
-        username = request.data.get('username')
-        qr_token = request.data.get('token')
-        if not username or not qr_token:
-            return Response({'error': 'username and token are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            user = get_object_or_404(User, username=username)
-        except Http404:
-            return Response({'error': f'User with username {username} not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            token = get_object_or_404(LoginToken, token=qr_token, user=user)
-            if token.is_valid():
-                auth_token, created = Token.objects.get_or_create(user=user)
-                return Response({'token': str(auth_token)}, status=status.HTTP_200_OK)
-            else:
-                return Response({'error': 'Token is expired.'}, status=status.HTTP_400_BAD_REQUEST)
-        except Http404:
-            return Response({'error': f'Token {qr_token} not found for user {username}.'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
 @api_view(['POST'])
 def has_downloaded_pass(request, user_uuid:uuid):
     """

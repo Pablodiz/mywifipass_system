@@ -1,19 +1,19 @@
 from django.urls import path
-from . import rest_api 
+from . import auth, networks, users 
 from mywifipass.settings import BASE_URL, API_PATH, USER_PATH
 from rest_framework.authtoken import views as authtoken_views # Default function that provides a when username and password are provided
 import uuid
 
 urlpatterns = [
-    path(USER_PATH + "<uuid:uuid>/", rest_api.user, name='user-data'),
-    path("user_qr/" + "<uuid:uuid>/", rest_api.user_qr, name='user-qr'),
+    path(USER_PATH + "<uuid:user_uuid>/", users.user, name='user-data'),
+    path("user_qr/" + "<uuid:user_uuid>/", users.user_qr, name='user-qr'),
     path('login/password', authtoken_views.obtain_auth_token, name = 'api-password-auth'),
-    path('login/token', rest_api.obtain_auth_token_username_token, name = 'api-token-auth'),
-    path(USER_PATH + "<uuid:uuid>/authorize", rest_api.allow_access_to_user, name='authorize-user'),
-    path(USER_PATH + "<uuid:user_uuid>/validate", rest_api.check_user, name='check-user'),
-    path(USER_PATH + "<uuid:user_uuid>/downloaded", rest_api.has_downloaded_pass, name='downloaded'),
-    path(USER_PATH + "<uuid:user_uuid>/certificates", rest_api.generate_certificates, name='generate-certificates'),
-    path("events/<uuid:uuid>/crl", rest_api.show_crl, name='event-crl'),
+    path('login/token', auth.obtain_auth_token_username_token, name = 'api-token-auth'),
+    path(USER_PATH + "<uuid:user_uuid>/authorize", users.allow_access_to_user, name='authorize-user'),
+    path(USER_PATH + "<uuid:user_uuid>/validate", users.check_user, name='check-user'),
+    path(USER_PATH + "<uuid:user_uuid>/downloaded", users.has_downloaded_pass, name='downloaded'),
+    path(USER_PATH + "<uuid:user_uuid>/certificates", users.generate_certificates, name='generate-certificates'),
+    path("events/<uuid:network_uuid>/crl", networks.show_crl, name='event-crl'),
 ]
 
 def user_url (user_uuid):
@@ -84,4 +84,4 @@ def certificates_url(user_uuid: uuid):
     Returns:
         url: URL for generating and obtaining the user certificates
     """
-    return BASE_URL + API_PATH + USER_PATH + str(user_uuid) + "/certificates"
+    return user_url(user_uuid) + "/certificates"
