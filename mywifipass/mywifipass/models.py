@@ -199,7 +199,12 @@ class WifiUser(models.Model):
             mark_ssid_to_update_crl(self.wifiLocation)
         else:
             raise ValueError("Certificate does not exist for this user.")
-
+    class Meta:
+        verbose_name = "Wifi Client"
+        verbose_name_plural = "Wifi Clients"
+        ordering = ['name']
+        unique_together = (('user_uuid', 'wifiLocation'),) 
+        swappable = swapper.swappable_setting('mywifipass', 'WifiUser')
 
 class WifiNetworkLocation(models.Model):
     """
@@ -226,6 +231,12 @@ class WifiNetworkLocation(models.Model):
     certificates_CA = models.ForeignKey(MyCustomCA, on_delete=models.SET_NULL, blank=False, null=True)
     radius_Certificate = models.ForeignKey(MyCustomCert, on_delete=models.SET_NULL, blank=False, null=True)
     location_uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    
+    class Meta:
+        verbose_name = "Wifi Network"
+        verbose_name_plural = "Wifi Networks"
+        ordering = ['name']
+        swappable = swapper.swappable_setting('mywifipass', 'WifiNetworkLocation')
 
     def create_ca_certificates(self):
         ca = MyCustomCA(

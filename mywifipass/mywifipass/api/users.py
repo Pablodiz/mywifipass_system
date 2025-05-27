@@ -68,14 +68,14 @@ def get_certificate_information (wifiuser: WifiUser, wifiNetworkLocation: WifiNe
         'location_name': wifiNetworkLocation.name,
         'location_uuid': wifiNetworkLocation.location_uuid,
         'certificates_symmetric_key': wifiuser.certificates_symmetric_key.hex(),
-        'validation_url': urls.validation_url(wifiuser.user_uuid),
-        'certificates_url': urls.certificates_url(wifiuser.user_uuid),
-        'has_downloaded_url': urls.has_downloaded_url(wifiuser.user_uuid),
+        'validation_url': urls.validation_url(wifiuser),
+        'certificates_url': urls.certificates_url(wifiuser),
+        'has_downloaded_url': urls.has_downloaded_url(wifiuser),
     }
     return replace_nulls(json_data)
 
 @api_view(['GET'])
-def user(request, user_uuid: uuid):
+def user(request, user_uuid: uuid, **kwargs):
     try:
         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if user.has_downloaded_pass is False: 
@@ -90,7 +90,7 @@ def user(request, user_uuid: uuid):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-def user_qr(request, user_uuid: uuid):
+def user_qr(request, user_uuid: uuid, **kwargs):
     """
     Handles the HTTP request to generate and return a QR code for a WifiUser.
     
@@ -103,7 +103,7 @@ def user_qr(request, user_uuid: uuid):
     """
     try:
         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
-        url = urls.user_url(user.user_uuid)
+        url = urls.user_url(user)
         buffer = generate_qr_code(url)
         
         # Return the binary stream as a FileResponse
@@ -116,7 +116,7 @@ def user_qr(request, user_uuid: uuid):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 @api_view(['GET'])
-def user_key(request, user_uuid:uuid):
+def user_key(request, user_uuid: uuid, **kwargs):
     """
     Handles the HTTP request to retrieve the symmetric key for a WifiUser.
     
@@ -147,7 +147,7 @@ def user_key(request, user_uuid:uuid):
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
-def check_user(request, user_uuid:uuid): 
+def check_user(request, user_uuid: uuid, **kwargs): 
     """
     Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
     
@@ -186,7 +186,7 @@ def check_user(request, user_uuid:uuid):
         return Response({
             'id_document': user.id_document,
             'name': user.name,
-            'authorize_url': urls.authorize_url(user.user_uuid)
+            'authorize_url': urls.authorize_url(user)
         }, status=status.HTTP_200_OK)
     
     except Exception as e:
@@ -194,7 +194,7 @@ def check_user(request, user_uuid:uuid):
 
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
-def allow_access_to_user(request, user_uuid:uuid): 
+def allow_access_to_user(request, user_uuid: uuid, **kwargs): 
     """
     Handles the HTTP request to receive data about a WifiUser and allow to get the password if the user is valid.
     
@@ -225,7 +225,7 @@ def allow_access_to_user(request, user_uuid:uuid):
 
 
 @api_view(['POST'])
-def has_downloaded_pass(request, user_uuid:uuid):
+def has_downloaded_pass(request, user_uuid: uuid, **kwargs):
     """
     Handles the HTTP request to set the has_downloaded_pass field of a WifiUser.
     
@@ -248,7 +248,7 @@ def has_downloaded_pass(request, user_uuid:uuid):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 @api_view(['GET'])
-def generate_certificates(request, user_uuid: uuid):
+def generate_certificates(request, user_uuid: uuid, **kwargs):
     """
     Handles the HTTP request to generate certificates for a WifiUser.
     Returns a PKCS#12 file (base64-encoded) containing the user's certificate, private key, and CA.

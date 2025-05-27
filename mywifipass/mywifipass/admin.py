@@ -15,6 +15,7 @@ from mywifipass.forms import CSVImportForm
 import csv
 from io import TextIOWrapper
 from django.http import HttpResponseRedirect
+from mywifipass.api.urls import user_qr_url
 
 class WifiUserAdmin(ModelAdmin):
     """
@@ -35,9 +36,10 @@ class WifiUserAdmin(ModelAdmin):
         return super().has_change_permission(request, obj)
 
     def show_qr_button(self, obj:WifiUser):
+        url = user_qr_url(obj)
         return format_html(
             '<a class="button" style="display: inline-block;text-align: center" href="{}">Show QR</a>',
-            f"/api/user_qr/{obj.user_uuid}/"
+            url
         )
     
     def revoke_certificate_button(self, obj: WifiUser):

@@ -32,8 +32,8 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
         "mywifipass/email/register_email.html",
         context={
             "location": user.wifiLocation, 
-            "qr_code_url": user_qr_url(user.user_uuid),
-            "pass_url": user_url(user.user_uuid)      
+            "qr_code_url": user_qr_url(user),
+            "pass_url": user_url(user)      
         },
     )
 
