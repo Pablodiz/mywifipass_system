@@ -71,32 +71,37 @@ class WifiUserAdmin(ModelAdmin):
         if request.method == "POST":
             form = CSVImportForm(request.POST, request.FILES)
             if form.is_valid():
-                csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
-                reader = csv.DictReader(csv_file)
-                errors = []
-                success_count = 0
+                try:
+                    csv_file = TextIOWrapper(request.FILES['csv_file'].file, encoding='utf-8')
+                    reader = csv.DictReader(csv_file)
+                    errors = []
+                    success_count = 0
 
-                for row in reader:
-                    try:
-                        selected_wifi_location = form.cleaned_data['wifiLocation']
-                        wifi_location = WifiNetworkLocation.objects.get(pk=selected_wifi_location)
-                        WifiUser.objects.create(
-                            name=row['name'],
-                            email=row['email'],
-                            id_document=row['id_document'],
-                            wifiLocation=wifi_location
-                        )
-                        success_count += 1
-                    except WifiNetworkLocation.DoesNotExist:
-                        errors.append(f"WifiLocation '{row['wifiLocation']}' not found for user '{row['name']}'.")
-                    except Exception as e:
-                        errors.append(f"Error processing user '{row['name']}': {e}")
+                    for row in reader:
+                        try:
+                            selected_wifi_location = form.cleaned_data['wifiLocation']
+                            wifi_location = WifiNetworkLocation.objects.get(pk=selected_wifi_location)
+                            user = WifiUser(
+                                name=row['name'],
+                                email=row['email'],
+                                id_document=row['id_document'],
+                                wifiLocation=wifi_location
+                            )
+                            user.save()
+                            success_count += 1
+                        
+                        except Exception as e:
+                            errors.append(f"Error processing user '{row['name']}': {e}")
 
-                if success_count > 0:
-                    self.message_user(request, f"Successfully imported {success_count} users.")
-                if errors:
-                    self.message_user(request, f"Errors occurred: {'; '.join(errors)}", level="error")
-                return HttpResponseRedirect(reverse('admin:mywifipass_wifiuser_changelist'))
+                    if success_count > 0:
+                        self.message_user(request, f"Successfully imported {success_count} users.")
+                    if errors:
+                        self.message_user(request, f"Errors occurred: {'; '.join(errors)}", level="error")
+                    
+                    return HttpResponseRedirect(reverse('admin:mywifipass_wifiuser_changelist'))
+                
+                except Exception as e:
+                    self.message_user(request, f"An error occurred while processing the CSV file", level="error")
         else:
             form = CSVImportForm()
         
@@ -105,7 +110,7 @@ class WifiUserAdmin(ModelAdmin):
         context['title'] = "Import WifiUsers from CSV"
 
         return render(request, "admin/csv_form.html", context)
-    #TODO move this views to another file
+
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         extra_context['custom_button'] = {
@@ -120,7 +125,6 @@ class WifiUserAdmin(ModelAdmin):
         user = get_object_or_404(WifiUser, user_uuid=uuid)
         try:
             user.revoke_certificate()
-            print("done donete")
             self.message_user(request, f"Certificate for user '{user.name}' has been revoked.", messages.SUCCESS)
         except ValueError as e:
             self.message_user(request, str(e), messages.ERROR)
