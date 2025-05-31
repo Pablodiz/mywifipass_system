@@ -1,21 +1,26 @@
 {% extends "admin/base_site.html" %}
 
 {% block content %}
-  <form method="post" enctype="multipart/form-data" style="margin-top: 2em; ">
+  <form method="post" enctype="multipart/form-data" style="margin-top: 2em;">
     {% csrf_token %}
-    <div class="form-row">
+    <div class="form-row" style="margin-bottom: 1.5em;">
       {{ form.wifiLocation.label_tag }}
       {{ form.wifiLocation }}
     </div>   
-    <div class="form-row">
-      Select a CSV file:
-      <label for="id_csv_file" class="button">
+    
+    <div class="form-row" style="margin-bottom: 1.5em;">
+      <div style="margin-bottom: 0.5em;">Select a CSV file:</div>
+      <label for="id_csv_file" class="button" style="margin-bottom: 0.5em;">
           Upload
       </label>
+      <div id="file-selected" style="margin-top: 0.5em; color: #123; font-style: italic; display: none;">
+        Selected: <span id="file-name"></span>
+      </div>
       {% if form.csv_file.help_text %}
-        <p class="help">{{ form.csv_file.help_text }}</p>
+        <p class="help" style="margin-top: 0.5em;">{{ form.csv_file.help_text }}</p>
       {% endif %}    
     </div>
+    
     <!-- Hide the original input, which is ugly -->
     <style>
         input[type="file"] {
@@ -24,8 +29,22 @@
     </style>
     {{ form.csv_file }}
 
-    <div class="submit-row">
+    <div class="submit-row" style="margin-top: 2em;">
       <button type="submit" class="button">Confirm</button>
     </div>
   </form>
+  <!-- Script for showing that a file was selected  -->
+  <script>
+    document.getElementById('id_csv_file').addEventListener('change', function(e) {
+      const fileSelected = document.getElementById('file-selected');
+      const fileName = document.getElementById('file-name');
+      
+      if (e.target.files.length > 0) {
+        fileName.textContent = e.target.files[0].name;
+        fileSelected.style.display = 'block';
+      } else {
+        fileSelected.style.display = 'none';
+      }
+    });
+  </script>
 {% endblock %}
