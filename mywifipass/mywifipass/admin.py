@@ -43,21 +43,26 @@ class WifiUserAdmin(ModelAdmin):
         )
     
     def revoke_certificate_button(self, obj: WifiUser):
+        button_style = "display: inline-block; text-align: center; width: 120px; padding: 8px 12px; box-sizing: border-box;"
         if obj.certificate: 
             if obj.certificate.revoked:
                 return format_html(
-                    '<a class="button" style="display: inline-block;text-align: center" disabled>Certificate revoked</button>'
+                    '<span class="button" style="{}" disabled>Certificate revoked</span>',
+                    button_style
                 )
             else:
                 url = f"/admin/mywifipass/wifiuser/{obj.user_uuid}/revoke_certificate/"
                 return format_html(
-                    '<a class="button" style="display: inline-block;text-align: center" href="{}">Revoke Certificate</a>',
+                    '<a class="button" style="{}" href="{}">Revoke Certificate</a>',
+                    button_style,
                     url
                 )
         else: 
-            return format_html('<a class="button" style="display: inline-block;text-align: center" disabled>No Certificate</button>')
-
-
+            return format_html(
+                '<span class="button" style="{}" disabled>No Certificate</span>',
+                button_style
+            )
+    
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
