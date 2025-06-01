@@ -47,7 +47,6 @@ class MyCustomCA(AbstractCa):
         )
         crl = crypto.CRL()
         now_str = now.strftime("%Y%m%d%H%M%SZ")  
-        print(now_str)
         for cert in revoked_certs:
             revoked = crypto.Revoked()
             hex_serial = format(int(cert.serial_number), 'x')
@@ -212,8 +211,8 @@ class WifiNetworkLocation(models.Model):
     """
     # Registration fields
     ### Mandatory fields
-    name = models.CharField(max_length=64, blank=False) 
-    SSID = models.CharField(max_length=32, blank=False) 
+    name = models.CharField(unique=True, max_length=64, blank=False) 
+    SSID = models.CharField(unique=True, max_length=32, blank=False) 
 
     ### Optional fields
     location = models.CharField(max_length=64, blank=True, null=True)
@@ -309,6 +308,17 @@ class WifiNetworkLocation(models.Model):
 @receiver(post_delete, sender=WifiNetworkLocation)
 def signal_function_name(sender, instance, using, **kwargs):
     from mywifipass.radius.radius_certs import mark_ssid_for_deletion # Import here to avoid circular import
-    instance.radius_Certificate.delete()
-    instance.certificates_CA.delete()
+    if instance.radius_Certificate:
+        instance.radius_Certificate.revoke()
+    if instance.certificates_CA:
+        instance.certificates_CA.delete()
+    # The certificate is already deleted when calling mark_ssid_for_deletion
     mark_ssid_for_deletion(instance)
+
+
+@receiver(post_delete, sender=WifiUser)
+def signal_function_name(sender, instance, using, **kwargs):
+    if instance.certificate:
+        instance.certificate.revoke()
+        instance.certificate.delete()
+        instance.certificate = None

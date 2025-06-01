@@ -63,9 +63,10 @@ def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
     # We create a file with the SSID name in the deletion directory
     with open(ssid_path, 'w') as ssid_file:
         ssid_file.write(wifiLocation.SSID)
-
-    wifiLocation.radius_Certificate.delete()
-    wifiLocation.radius_Certificate = None
+    
+    if wifiLocation.radius_Certificate:
+        wifiLocation.radius_Certificate.delete()
+        wifiLocation.radius_Certificate = None
 
 def mark_ssid_to_update_crl(wifiLocation: WifiNetworkLocation):
     """
