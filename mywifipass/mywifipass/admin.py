@@ -17,15 +17,18 @@ from io import TextIOWrapper
 from django.http import HttpResponseRedirect
 from mywifipass.api.urls import user_qr_url
 
+
+button_style = "display: inline-block; text-align: center; width: 120px; padding: 8px 12px; box-sizing: border-box;"
+
 class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "show_qr_button", "has_attended", "revoke_certificate_button", "has_downloaded_pass"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation"]
     list_filter = ["wifiLocation"]
-    list_editable = ["has_downloaded_pass"]
+    list_editable = ["has_downloaded_pass", "has_attended"]
 
     def has_change_permission(self, request, obj=None):
         if obj and obj.certificate and obj.certificate.revoked:
@@ -34,16 +37,15 @@ class WifiUserAdmin(ModelAdmin):
                 request._revoked_message_shown = True
             return False
         return super().has_change_permission(request, obj)
-
+    
     def show_qr_button(self, obj:WifiUser):
         url = user_qr_url(obj)
         return format_html(
-            '<a class="button" style="display: inline-block;text-align: center" href="{}">Show QR</a>',
-            url
+            '<a class="button" style="{}" href="{}">Show QR</a>',
+            button_style, url
         )
     
     def revoke_certificate_button(self, obj: WifiUser):
-        button_style = "display: inline-block; text-align: center; width: 120px; padding: 8px 12px; box-sizing: border-box;"
         if obj.certificate: 
             if obj.certificate.revoked:
                 return format_html(
@@ -125,6 +127,7 @@ class WifiUserAdmin(ModelAdmin):
 
 
     revoke_certificate_button.short_description = "Revoke Certificate"
+    show_qr_button.short_description = "Show QR Code"
 
     def revoke_certificate_view(self, request, uuid):
         user = get_object_or_404(WifiUser, user_uuid=uuid)
