@@ -1,14 +1,33 @@
-from django.urls import path
+from django.urls import path, include
 from . import auth, networks, users 
 from mywifipass.settings import BASE_URL, API_PATH
 from rest_framework.authtoken import views as authtoken_views # Default function that provides a when username and password are provided
 import uuid
 from mywifipass.models import WifiUser, WifiNetworkLocation
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
+from mywifipass.api.networks import WifiNetworkLocationViewSet
+from rest_framework.routers import DefaultRouter
 
-EVENT_PATH = "events/<uuid:network_uuid>/"
-USER_PATH = "events/<uuid:network_uuid>/users/<uuid:user_uuid>/"
+NETWORK_PATH = "events/<uuid:network_uuid>/"
+USER_PATH = NETWORK_PATH + "users/<uuid:user_uuid>/"
+
+schema_view = get_schema_view(
+   openapi.Info(
+      title="MyWifiPass API",
+      default_version='v1',
+      license=openapi.License(name="BSD License"),
+   ),
+   public=True,
+   permission_classes=(permissions.AllowAny,),
+)
+
+router = DefaultRouter()
+router.register(r'networks', WifiNetworkLocationViewSet, basename='network')
 
 urlpatterns = [
+    path('', include(router.urls)),  # Include the router URLs
     path('login/password', authtoken_views.obtain_auth_token, name = 'api-password-auth'),
     path('login/token', auth.obtain_auth_token_username_token, name = 'api-token-auth'),
     path(USER_PATH, users.user, name='user-data'),
@@ -17,8 +36,10 @@ urlpatterns = [
     path(USER_PATH + "validate", users.check_user, name='check-user'),
     path(USER_PATH + "downloaded", users.has_downloaded_pass, name='downloaded'),
     path(USER_PATH + "certificates", users.generate_certificates, name='generate-certificates'),
-    path(EVENT_PATH + "crl", networks.show_crl, name='event-crl'),
-]
+    path('swagger', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+   ]
 
 def user_url (user: WifiUser):
     """
@@ -29,8 +50,7 @@ def user_url (user: WifiUser):
         url: URL of the user
     """
     return BASE_URL + API_PATH + f"events/{str(user.wifiLocation.location_uuid)}/users/{str(user.user_uuid)}"
-    
-    
+
 def user_qr_url (user: WifiUser):
     """
     Function to get the URL of the user QR code

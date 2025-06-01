@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django_x509',
     'rest_framework',
     'rest_framework.authtoken',
+    'drf_yasg',
     'mywifipass',
 ]
 

@@ -1,34 +1,86 @@
-from django.shortcuts import get_object_or_404
-from django.http import Http404
-from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
-import uuid 
+from rest_framework import status, serializers
 from django.http import HttpResponse
 from mywifipass.models import WifiNetworkLocation
+from rest_framework.permissions import IsAdminUser, AllowAny
+from rest_framework.viewsets import ModelViewSet
+from rest_framework.decorators import action
 
-@api_view(['GET'])
-def show_crl(request, network_uuid:uuid):
+class WifiNetworkLocationSerializer(serializers.ModelSerializer):
+    """Detailed serializer for WifiNetworkLocation, used for all operations except listing."""
+    class Meta:
+        model = WifiNetworkLocation
+        fields = [
+            'name', 'SSID',
+            'location', 'description', 'brief_description', 'start_date', 'end_date',
+            'form_link', 'is_registration_open', 'is_enabled_in_radius', 
+            'is_visible_in_web', 'logo', 'location_uuid'
+        ]
+        extra_kwargs = {
+            # Optional fields
+            'location': {'required': False, 'allow_blank': True},
+            'description': {'required': False, 'allow_blank': True},
+            'brief_description': {'required': False, 'allow_blank': True},
+            'start_date': {'required': False, 'allow_null': True},
+            'end_date': {'required': False, 'allow_null': True},
+            'form_link': {'required': False, 'allow_blank': True},
+            'is_registration_open': {'required': False},
+            'is_enabled_in_radius': {'required': False},
+            'is_visible_in_web': {'required': False},
+            'logo': {'required': False, 'allow_null': True},
+            'location_uuid': {'read_only': True},
+        }
+
+class WifiNetworkLocationSerializerForList(serializers.ModelSerializer):
+    """For listing WifiNetworkLocation"""
+    class Meta:
+        model = WifiNetworkLocation
+        fields = [
+            'location_uuid', 'name'
+        ]
+
+class WifiNetworkLocationViewSet(ModelViewSet):
     """
-    Handles the HTTP request to show the Certificate Revocation List (CRL) of an event.
-    
-    Args:
-        request: The HTTP request object.
-    
-    Returns:
-        Response: A response containing the CRL or an error message.
+    ViewSet for CRUD operations on WifiNetworkLocation
     """
-    try:
-        event = get_object_or_404(WifiNetworkLocation, location_uuid=network_uuid)
-        crl = event.certificates_CA.crl
-        if crl:
-            crl_text = crl.decode('utf-8')
-            print(crl_text)
-            return HttpResponse(crl_text, content_type="text/plain", status=status.HTTP_200_OK) # We use an HttpResponse to return the CRL as a text file
-        else:
-            return Response({'error': 'No CRL found for this event.'}, status=status.HTTP_404_NOT_FOUND)
-    except Http404:
-        return Response({'error': 'Event with UUID ' + str(network_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    queryset = WifiNetworkLocation.objects.all()
+    lookup_field = 'location_uuid'
+    serializer_class = WifiNetworkLocationSerializer
+
+    def get_permissions(self):
+        """ Returns the appropriate permissions based on the action being performed."""
+        if self.action in ['create','update', 'partial_update', 'destroy']:
+            permission_classes = [IsAdminUser]
+        elif self.action == 'crl':
+            permission_classes = [AllowAny]  
+        else:  # list, retrieve
+            permission_classes = [AllowAny]
+        
+        return [permission() for permission in permission_classes]
+    
+    def get_serializer_class(self):
+        """ Returns the appropriate serializer class based on the action being performed."""
+        if self.action in ['create', 'update', 'partial_update', 'retrieve']:
+            return WifiNetworkLocationSerializer
+        if self.action == 'list':
+            return WifiNetworkLocationSerializerForList
+        return serializers.Default
+    
+
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def crl(self, request, **kwargs):
+        from mywifipass.api.urls import NETWORK_PATH
+        f"""GET {NETWORK_PATH}/crl/
+        Returns the Certificate Revocation List (CRL) for the specified network.
+        """
+        try:
+            event = self.get_object()
+            crl = event.certificates_CA.crl
+            if crl:
+                crl_text = crl.decode('utf-8')
+                return HttpResponse(crl_text, content_type="text/plain", status=status.HTTP_200_OK) # We use an HttpResponse to return the CRL as a text file
+            else:
+                return Response({'error': 'No CRL found for this event.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
