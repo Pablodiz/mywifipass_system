@@ -47,7 +47,6 @@ class Migration(migrations.Migration):
                 'verbose_name': 'CA',
                 'verbose_name_plural': 'CAs',
                 'abstract': False,
-                'swappable': 'MYWIFIPASS_MYCUSTOMCA_MODEL',
             },
         ),
         migrations.CreateModel(
@@ -82,7 +81,6 @@ class Migration(migrations.Migration):
                 'verbose_name': 'CA',
                 'verbose_name_plural': 'CAs',
                 'abstract': False,
-                'swappable': 'MYWIFIPASS_MYCUSTOMCERT_MODEL',
             },
         ),
         migrations.CreateModel(

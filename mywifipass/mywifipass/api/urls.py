@@ -48,7 +48,7 @@ def user_url (user: WifiUser):
     Returns:
         url: URL of the user
     """
-    return BASE_URL + API_PATH + f"events/{str(user.wifiLocation.location_uuid)}/users/{str(user.user_uuid)}"
+    return BASE_URL + API_PATH + f"networks/{str(user.wifiLocation.location_uuid)}/users/{str(user.user_uuid)}"
 
 def user_qr_url (user: WifiUser):
     """
@@ -109,3 +109,13 @@ def certificates_url(user: WifiUser):
         url: URL for generating and obtaining the user certificates
     """
     return user_url(user) + "/certificates"
+
+def crl_url(network: WifiNetworkLocation):
+    """
+    Function to get the URL for the Certificate Revocation List (CRL) of a network
+    Args:
+        network: WifiNetworkLocation for whom the url is requested
+    Returns:
+        url: URL of the CRL of the network
+    """
+    return BASE_URL + API_PATH + f"networks/{str(network.location_uuid)}/crl"

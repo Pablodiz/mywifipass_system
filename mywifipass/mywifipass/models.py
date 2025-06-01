@@ -7,7 +7,6 @@ from django.dispatch import receiver
 from OpenSSL import crypto
 from django.utils import timezone
 from mywifipass.settings import BASE_URL, API_PATH
-import swapper
 
 class MyCustomCA(AbstractCa):
     """
@@ -15,7 +14,6 @@ class MyCustomCA(AbstractCa):
     """
     class Meta(AbstractCa.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('mywifipass', 'MyCustomCA')
 
     def __init__(self, *args, **kwargs):
         self.crl_dp_url = None  # default value
@@ -61,9 +59,8 @@ class MyCustomCert(AbstractCert):
     """
     Custom Certificate model that uses MyCustomCA as its CA.
     """
-    class Meta(AbstractCa.Meta):
+    class Meta(AbstractCert.Meta):
         abstract = False
-        swappable = swapper.swappable_setting('mywifipass', 'MyCustomCert')
     
     ca = models.ForeignKey(
         MyCustomCA,
@@ -142,7 +139,7 @@ class WifiUser(models.Model):
         
         return cert, certificate_pem, private_key_pem         
 
-    def save(self, send_email: bool = True, *args, **kwargs):
+    def save(self, send_email: bool = True, recreate_certificate:bool = False, *args, **kwargs):
         from mywifipass.utils import send_mail
         if not self.wifiLocation:
             raise ValueError("WifiNetworkLocation is required to create a WifiUser.")
@@ -173,7 +170,7 @@ class WifiUser(models.Model):
             if (self.name != original.name or
                     self.id_document != original.id_document or
                     self.email != original.email or
-                    self.wifiLocation != original.wifiLocation):
+                    self.wifiLocation != original.wifiLocation) or recreate_certificate:
                 # If any of these fields changed, we need to revoke the old one and send a mail 
                 self.certificate.revoke()
                 self.certificate = None
@@ -203,7 +200,6 @@ class WifiUser(models.Model):
         verbose_name_plural = "Wifi Clients"
         ordering = ['name']
         unique_together = (('user_uuid', 'wifiLocation'),) 
-        swappable = swapper.swappable_setting('mywifipass', 'WifiUser')
 
 class WifiNetworkLocation(models.Model):
     """
@@ -235,7 +231,6 @@ class WifiNetworkLocation(models.Model):
         verbose_name = "Wifi Network"
         verbose_name_plural = "Wifi Networks"
         ordering = ['name']
-        swappable = swapper.swappable_setting('mywifipass', 'WifiNetworkLocation')
 
     def create_ca_certificates(self):
         ca = MyCustomCA(
@@ -244,18 +239,15 @@ class WifiNetworkLocation(models.Model):
             validity_start=self.start_date,
             validity_end=self.end_date,
         )
-        ca.crl_dp_url=f"{BASE_URL}{API_PATH}events/{self.location_uuid}/crl"
+        ca.crl_dp_url= BASE_URL + API_PATH + f"networks/{str(self.location_uuid)}/crl"
 
         ca.save()
 
         self.certificates_CA = ca
-        #TODO think about this        
-        # for user in WifiUser.objects.filter(wifiLocation=self):
-        #     try:
-        #         user.certificate = user.create_certificate()
-        #         user.save()
-        #     except Exception as e:
-        #         pass
+        
+        for user in WifiUser.objects.filter(wifiLocation=self):
+            if user.certificate:
+                user.save(send_email=True, recreate_certificate=True)  # Save the user to delete the certificate and notify they need a new one
 
     def save(self, *args, **kwargs):
         from mywifipass.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import

@@ -123,7 +123,7 @@ class WifiUserViewSet(ModelViewSet):
 
     @swagger_auto_schema(tags = swagger_tags)
     def retrieve(self, request, *args, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}"""
         user = self.get_object()
         if user.has_downloaded_pass:
@@ -147,7 +147,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def qr(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
         user = self.get_object()
         url = urls.user_url(user)
@@ -160,7 +160,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def check(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}check/"""
         user = self.get_object()
         
@@ -180,7 +180,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def authorize(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}authorize/"""
         user = self.get_object()
         
@@ -199,7 +199,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def validate(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}validate/"""
         user = self.get_object()
         is_valid = (
@@ -212,7 +212,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def certificates(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}certificates/"""
         user = self.get_object()
         
@@ -249,7 +249,7 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def downloaded(self, request, **kwargs):
-        from api.urls import USER_PATH 
+        from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}downloaded/"""
         user = self.get_object()
         user.has_downloaded_pass = True
