@@ -256,10 +256,11 @@ def generate_certificates(request, user_uuid: uuid, **kwargs):
     try:
         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
         if user.allow_access_expiration is None:
-            return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'User is not allowed to access'}, status=status.HTTP_403_FORBIDDEN)
         if user.allow_access_expiration > timezone.now():
             customcert, certificate_pem, private_key_pem = user.create_certificate()
             user.certificate = customcert
+            user.allow_access_expiration = None # Reset expiration after certificate generation
             user.save(send_email=False)
 
             # Convert PEM to objects
@@ -270,7 +271,7 @@ def generate_certificates(request, user_uuid: uuid, **kwargs):
             # Ensure the private key is in the correct format
             password = user.certificates_symmetric_key.hex()
 
-            # Create PKCS#12
+            # Create PKCS#12 protected with the symmetric key
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=b"wifiuser",
                 key=key,
@@ -286,7 +287,7 @@ def generate_certificates(request, user_uuid: uuid, **kwargs):
                 'pkcs12_b64': p12_b64
                 }, status=status.HTTP_200_OK)
         else:
-            return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'User is not allowed to access'}, status=status.HTTP_403_FORBIDDEN)
     except Http404:
         return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
