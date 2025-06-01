@@ -5,7 +5,7 @@ from mywifipass.models import WifiNetworkLocation
 from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
-
+from drf_yasg.utils import swagger_auto_schema
 class WifiNetworkLocationSerializer(serializers.ModelSerializer):
     """Detailed serializer for WifiNetworkLocation, used for all operations except listing."""
     class Meta:
@@ -45,7 +45,7 @@ class WifiNetworkLocationViewSet(ModelViewSet):
     """
     queryset = WifiNetworkLocation.objects.all()
     lookup_field = 'location_uuid'
-    serializer_class = WifiNetworkLocationSerializer
+    swagger_tags = ['Wifi Network Locations']
 
     def get_permissions(self):
         """ Returns the appropriate permissions based on the action being performed."""
@@ -60,13 +60,12 @@ class WifiNetworkLocationViewSet(ModelViewSet):
     
     def get_serializer_class(self):
         """ Returns the appropriate serializer class based on the action being performed."""
-        if self.action in ['create', 'update', 'partial_update', 'retrieve']:
-            return WifiNetworkLocationSerializer
         if self.action == 'list':
             return WifiNetworkLocationSerializerForList
-        return serializers.Default
+        else:
+            return WifiNetworkLocationSerializer
     
-
+    @swagger_auto_schema(tags=swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def crl(self, request, **kwargs):
         from mywifipass.api.urls import NETWORK_PATH
@@ -83,4 +82,27 @@ class WifiNetworkLocationViewSet(ModelViewSet):
                 return Response({'error': 'No CRL found for this event.'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    @swagger_auto_schema(tags = swagger_tags)
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
+    @swagger_auto_schema(tags = swagger_tags)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags = swagger_tags)
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags = swagger_tags)
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags = swagger_tags)
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags = swagger_tags)
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)

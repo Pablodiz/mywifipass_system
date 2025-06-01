@@ -8,9 +8,10 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
 from mywifipass.api.networks import WifiNetworkLocationViewSet
-from rest_framework.routers import DefaultRouter
+from mywifipass.api.users import WifiUserViewSet
+from rest_framework_nested.routers import DefaultRouter, NestedDefaultRouter
 
-NETWORK_PATH = "events/<uuid:network_uuid>/"
+NETWORK_PATH = "networks/<uuid:network_uuid>/"
 USER_PATH = NETWORK_PATH + "users/<uuid:user_uuid>/"
 
 schema_view = get_schema_view(
@@ -26,16 +27,14 @@ schema_view = get_schema_view(
 router = DefaultRouter()
 router.register(r'networks', WifiNetworkLocationViewSet, basename='network')
 
+networks_router = NestedDefaultRouter(router, r'networks', lookup='network')
+networks_router.register(r'users', WifiUserViewSet, basename='wifi-client')
+
 urlpatterns = [
-    path('', include(router.urls)),  # Include the router URLs
+    path('', include(router.urls)),  # Include the networks URLs
+    path('', include(networks_router.urls)),  # Include the users URLs
     path('login/password', authtoken_views.obtain_auth_token, name = 'api-password-auth'),
     path('login/token', auth.obtain_auth_token_username_token, name = 'api-token-auth'),
-    path(USER_PATH, users.user, name='user-data'),
-    path(USER_PATH + "qr", users.user_qr, name='user-qr'),
-    path(USER_PATH + "authorize", users.allow_access_to_user, name='authorize-user'),
-    path(USER_PATH + "validate", users.check_user, name='check-user'),
-    path(USER_PATH + "downloaded", users.has_downloaded_pass, name='downloaded'),
-    path(USER_PATH + "certificates", users.generate_certificates, name='generate-certificates'),
     path('swagger', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
