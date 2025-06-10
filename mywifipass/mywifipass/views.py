@@ -14,7 +14,7 @@ def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
     breadcrumbs = [
         {"name": "Home", "url": "/"},
-        {"name": "Active events", "url": "/events/"},
+        {"name": "Active networks", "url": "/networks/"},
     ]
 
     return render(request, "mywifipass/wifilocation/wifi_network_locations_list.html", {"locations": locations, "breadcrumbs": breadcrumbs})
@@ -22,38 +22,38 @@ def wifi_network_locations_list(request):
 
 def wifi_location_details(request, location_uuid):
     """View for displaying the details of a specific WifiNetworkLocation."""
-    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
+    network = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
     
     breadcrumbs = [
         {"name": "Home", "url": "/"},
-        {"name": "Active events", "url": "/events/"},
-        {"name": event.name, "url": f"/events/{location_uuid}/"},
+        {"name": "Active networks", "url": "/networks/"},
+        {"name": network.name, "url": f"/networks/{location_uuid}/"},
     ]
-    return render(request, "mywifipass/wifilocation/wifi_location_details.html", {"location": event, "breadcrumbs": breadcrumbs})
+    return render(request, "mywifipass/wifilocation/wifi_location_details.html", {"location": network, "breadcrumbs": breadcrumbs})
 
 
 def wifi_user_autoregistration(request, location_uuid):
-    # Get the event object using the location_uuid        
-    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
+    # Get the network object using the location_uuid        
+    network = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
     if request.method == "POST":
         form = WifiUserForm(request.POST)
         if form.is_valid():
             wifi_user = form.save(commit=False)
-            # Set the wifiLocation field to the event
-            wifi_user.wifiLocation = event
+            # Set the wifiLocation field to the network
+            wifi_user.wifiLocation = network
             wifi_user = form.save()
-            return redirect('register_confirmation', location_uuid=event.location_uuid)
+            return redirect('register_confirmation', location_uuid=network.location_uuid)
     else:
         form = WifiUserForm()
 
     breadcrumbs = [
         {"name": "Home", "url": "/"},
-        {"name": "Active events", "url": "/events/"},
-        {"name": event.name, "url": f"/events/{location_uuid}/"},
-        {"name": "Registration", "url": f"/events/{location_uuid}/register"},
+        {"name": "Active networks", "url": "/networks/"},
+        {"name": network.name, "url": f"/networks/{location_uuid}/"},
+        {"name": "Registration", "url": f"/networks/{location_uuid}/register"},
     ]
         
-    return render(request, "mywifipass/wifiuser/register.html", {"form": form, "location": event, "breadcrumbs": breadcrumbs})
+    return render(request, "mywifipass/wifiuser/register.html", {"form": form, "location": network, "breadcrumbs": breadcrumbs})
 
 def admin_qr_view(request):
     LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()
@@ -73,12 +73,12 @@ def admin_qr_view(request):
 
 def wifi_user_registration_done(request, location_uuid):
     """View for displaying the registration done page."""
-    event = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
+    network = get_object_or_404(WifiNetworkLocation, location_uuid=location_uuid)
     
     breadcrumbs = [
         {"name": "Home", "url": "/"},
-        {"name": "Active events", "url": "/events/"},
-        {"name": "Registration confirm", "url": f"/events/{location_uuid}/confirmation"}
+        {"name": "Active networks", "url": "/networks/"},
+        {"name": "Registration confirm", "url": f"/networks/{location_uuid}/confirmation"}
     ]
     
-    return render(request, "mywifipass/wifiuser/confirmation.html", {"location": event, "breadcrumbs": breadcrumbs})
+    return render(request, "mywifipass/wifiuser/confirmation.html", {"location": network, "breadcrumbs": breadcrumbs})
