@@ -27,13 +27,13 @@ def generate_qr_code(data: str) -> BytesIO:
 
 
 def send_mail(user: WifiUser, update: bool = False) -> None:
-    from mywifipass.api.urls import user_qr_url, user_url # Import here to avoid circular import
+    from mywifipass.api.urls import user_qr_url, wifipass_download_url # Import here to avoid circular import
     html_content = render_to_string(
         "mywifipass/email/register_email.html",
         context={
             "location": user.wifiLocation, 
             "qr_code_url": user_qr_url(user),
-            "pass_url": user_url(user)      
+            "pass_url": wifipass_download_url(user)
         },
     )
 

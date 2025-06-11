@@ -50,6 +50,16 @@ def user_url (user: WifiUser):
     """
     return BASE_URL + API_PATH + f"networks/{str(user.wifiLocation.location_uuid)}/users/{str(user.user_uuid)}"
 
+def wifipass_download_url (user: WifiUser):
+    """
+    Function to get the URL of the wifipass for an user
+    Args:
+        user: WifiUser for whom the url is requested
+    Returns:
+        url: URL of the wifipass for an user
+    """
+    return user_url(user) + "/download/"
+
 def user_qr_url (user: WifiUser):
     """
     Function to get the URL of the user QR code

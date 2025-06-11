@@ -31,7 +31,7 @@ class WifiUserCreateSerializer(serializers.ModelSerializer):
         model = WifiUser
         fields = ['name', 'email', 'id_document', 'wifiLocation']
 class WifiUserDetailSerializer(serializers.ModelSerializer):
-    """Complete details of the """
+    """Complete details of the WifiUser """
     network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
     ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
     location = serializers.CharField(source='wifiLocation.location', read_only=True)
@@ -40,7 +40,6 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
     description = serializers.CharField(source='wifiLocation.description', read_only=True)
     location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
     location_uuid = serializers.UUIDField(source='wifiLocation.location_uuid', read_only=True)
-    certificates_symmetric_key = serializers.SerializerMethodField()
     
     class Meta:
         model = WifiUser
@@ -50,12 +49,7 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
             'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
             'description', 'location_name', 'location_uuid', 'certificates_symmetric_key'
         ]
-        read_only_fields = ['user_uuid', 'has_attended', 'has_downloaded_pass', 'allow_access_expiration']
-    
-    def get_certificates_symmetric_key(self, obj):
-        if obj.certificates_symmetric_key:
-            return obj.certificates_symmetric_key.hex()
-        return None
+        read_only_fields = ['user_uuid', 'allow_access_expiration']
 class WifiUserListSerializer(serializers.ModelSerializer):
     """Serializer for listing WifiUsers with basic information."""
     class Meta:
@@ -67,8 +61,24 @@ class WifiUserUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating WifiUser information."""
     class Meta:
         model = WifiUser
-        fields = ['name', 'email', 'id_document']
+        fields = ['user_uuid', 'name', 'email', 'has_attended', 'has_downloaded_pass']
 
+class WifiUserWifiPassSerializer(serializers.ModelSerializer):
+    """Serializer for downloading the WifiUser pass."""
+    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
+    ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
+    location = serializers.CharField(source='wifiLocation.location', read_only=True)
+    start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
+    end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
+    description = serializers.CharField(source='wifiLocation.description', read_only=True)
+    location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
+    
+    class Meta:
+        model = WifiUser
+        fields = [
+            'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
+            'description', 'location_name', 'certificates_symmetric_key'
+        ]
 
 class CheckUserSerializer(serializers.Serializer):
     """For checking user information before authorizing"""
@@ -100,12 +110,14 @@ class WifiUserViewSet(ModelViewSet):
             return WifiUserUpdateSerializer
         elif self.action == 'check_user':
             return CheckUserSerializer
+        elif self.action == 'download': 
+            return WifiUserWifiPassSerializer
         else:  # retrieve
             return WifiUserDetailSerializer
     
     def get_permissions(self):
         """Select permissions for each action"""
-        if self.action in ['create', 'check_user', 'authorize','update', 'partial_update', 'destroy', 'list']:
+        if self.action in ['create', 'check_user', 'authorize','update', 'partial_update', 'destroy', 'list', 'retrieve']:
             permission_classes = [IsAdminUser]  
         else:
             permission_classes = [AllowAny]
@@ -122,9 +134,10 @@ class WifiUserViewSet(ModelViewSet):
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
     @swagger_auto_schema(tags = swagger_tags)
-    def retrieve(self, request, *args, **kwargs):
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def download(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
-        f"""GET {USER_PATH}"""
+        f"""GET {USER_PATH}download/"""
         user = self.get_object()
         if user.has_downloaded_pass:
             return Response(
@@ -150,7 +163,7 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
         user = self.get_object()
-        url = urls.user_url(user)
+        url = urls.wifipass_download_url(user)
         buffer = generate_qr_code(url)
         
         response = FileResponse(buffer, content_type="image/png")
@@ -246,6 +259,10 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags = swagger_tags)
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(tags = swagger_tags)
     def create(self, request, *args, **kwargs):
