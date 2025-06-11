@@ -54,7 +54,7 @@ class WifiNetworkLocationViewSet(ModelViewSet):
         elif self.action == 'crl':
             permission_classes = [AllowAny]  
         else:  # list, retrieve
-            permission_classes = [AllowAny]
+            permission_classes = [IsAdminUser]
         
         return [permission() for permission in permission_classes]
     

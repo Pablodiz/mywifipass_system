@@ -1,11 +1,13 @@
 import os
 from mywifipass.models import WifiNetworkLocation, MyCustomCert
+from OpenSSL import crypto
 
 # Export directory
-RADIUS_PENDING_CERT_DIR = "/djangox509/mywifipass/server_certs/pending"
-RADIUS_PROCESSED_CERT_DIR = "/djangox509/mywifipass/server_certs/processed"
-RADIUS_DELETION_CERT_DIR = "/djangox509/mywifipass/server_certs/deletion"
-RADIUS_UPDATE_CRL = "/djangox509/mywifipass/server_certs/update_crl"
+RADIUS_ROOT_DIR = "/djangox509/mywifipass/server_certs"
+RADIUS_PENDING_CERT_DIR = RADIUS_ROOT_DIR + "/pending"
+RADIUS_PROCESSED_CERT_DIR = RADIUS_ROOT_DIR + "/processed"
+RADIUS_DELETION_CERT_DIR = RADIUS_ROOT_DIR + "/deletion"
+RADIUS_UPDATE_CRL = RADIUS_ROOT_DIR + "/update_crl"
 
 def export_certificates(wifiLocation: WifiNetworkLocation):
     """
@@ -32,13 +34,21 @@ def export_certificates(wifiLocation: WifiNetworkLocation):
     # We create the certificates: 
     ca = wifiLocation.certificates_CA
     if ca: 
+        common_name = wifiLocation.name.replace(" ", "_")
         # Create the radius certificate
         radius_custom_cert = MyCustomCert(
             name=f"{wifiLocation.name}'s Radius Certificate",
             ca=ca,
-            common_name=wifiLocation.name,
+            common_name=common_name,
             validity_start=ca.validity_start,
             validity_end=ca.validity_end,
+            extensions=[
+                {
+                    'name': 'subjectAltName',
+                    'critical': False,
+                    'value': 'DNS:' + common_name
+                }
+            ]
         )
         certificate, private_key = radius_custom_cert.save(return_cert_fields=True)
         wifiLocation.radius_Certificate = radius_custom_cert
@@ -64,10 +74,12 @@ def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
     with open(ssid_path, 'w') as ssid_file:
         ssid_file.write(wifiLocation.SSID)
     
-    if wifiLocation.radius_Certificate:
-        wifiLocation.radius_Certificate.delete()
-        wifiLocation.radius_Certificate = None
-
+    try:
+        if wifiLocation.radius_Certificate:
+            wifiLocation.radius_Certificate.revoke()
+            wifiLocation.radius_Certificate = None
+    except:
+        pass
 def mark_ssid_to_update_crl(wifiLocation: WifiNetworkLocation):
     """
     Marks an SSID for update CRL by creating a file with its name in the deletion directory.

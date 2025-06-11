@@ -31,8 +31,8 @@ class WifiUserCreateSerializer(serializers.ModelSerializer):
         model = WifiUser
         fields = ['name', 'email', 'id_document', 'wifiLocation']
 class WifiUserDetailSerializer(serializers.ModelSerializer):
-    """Para mostrar detalles completos del usuario"""
-    network_common_name = serializers.CharField(source='wifiLocation.certificates_CA.common_name', read_only=True)
+    """Complete details of the """
+    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
     ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
     location = serializers.CharField(source='wifiLocation.location', read_only=True)
     start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
@@ -57,21 +57,21 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
             return obj.certificates_symmetric_key.hex()
         return None
 class WifiUserListSerializer(serializers.ModelSerializer):
-    """Para listar usuarios - campos básicos"""
+    """Serializer for listing WifiUsers with basic information."""
     class Meta:
         model = WifiUser
         fields = ['user_uuid', 'name', 'email', 'has_attended', 'has_downloaded_pass']
 
 
 class WifiUserUpdateSerializer(serializers.ModelSerializer):
-    """Para actualizar usuarios - campos editables"""
+    """Serializer for updating WifiUser information."""
     class Meta:
         model = WifiUser
         fields = ['name', 'email', 'id_document']
 
 
 class CheckUserSerializer(serializers.Serializer):
-    """Para respuesta de check_user"""
+    """For checking user information before authorizing"""
     id_document = serializers.CharField()
     name = serializers.CharField()
     authorize_url = serializers.URLField()
@@ -105,7 +105,7 @@ class WifiUserViewSet(ModelViewSet):
     
     def get_permissions(self):
         """Select permissions for each action"""
-        if self.action in ['create', 'check_user', 'authorize','update', 'partial_update', 'destroy']:
+        if self.action in ['create', 'check_user', 'authorize','update', 'partial_update', 'destroy', 'list']:
             permission_classes = [IsAdminUser]  
         else:
             permission_classes = [AllowAny]
@@ -158,10 +158,10 @@ class WifiUserViewSet(ModelViewSet):
         return response
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
-    def check(self, request, **kwargs):
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    def validate(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
-        f"""POST {USER_PATH}check/"""
+        f"""GET {USER_PATH}validate/"""
         user = self.get_object()
         
         if user.has_attended:
@@ -195,20 +195,7 @@ class WifiUserViewSet(ModelViewSet):
         user.save(send_email=False)
         
         return Response({'message': 'The user can now join the network.'})
-    
-    @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
-    def validate(self, request, **kwargs):
-        from mywifipass.api.urls import USER_PATH 
-        f"""GET {USER_PATH}validate/"""
-        user = self.get_object()
-        is_valid = (
-            user.allow_access_expiration and 
-            user.allow_access_expiration > timezone.now() and
-            (not user.certificate or not user.certificate.revoked)
-        )
-        return Response({'valid': is_valid})
-    
+        
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def certificates(self, request, **kwargs):

@@ -58,7 +58,7 @@ def user_qr_url (user: WifiUser):
     Returns:
         url: URL of the user QR code
     """
-    return user_url(user) + "/qr"
+    return user_url(user) + "/qr/"
 
 def certificates_symmetric_key_url(user: WifiUser):
     """
@@ -68,7 +68,7 @@ def certificates_symmetric_key_url(user: WifiUser):
     Returns:
         url: URL of the symmetric key of the user
     """
-    return user_url(user) + "/key"
+    return user_url(user) + "/key/"
 
 def validation_url(user: WifiUser):
     """
@@ -78,7 +78,7 @@ def validation_url(user: WifiUser):
     Returns:
         url: URL for checking that the user exists for an event
     """
-    return user_url(user) + "/validate"
+    return user_url(user) + "/validate/"
 
 def authorize_url (user: WifiUser):
     """
@@ -88,7 +88,7 @@ def authorize_url (user: WifiUser):
     Returns:
         url: URL where to authorize the user
     """
-    return user_url(user) + "/authorize"
+    return user_url(user) + "/authorize/"
 
 def has_downloaded_url(user: WifiUser):
     """
@@ -98,7 +98,7 @@ def has_downloaded_url(user: WifiUser):
     Returns:
         url: URL where to check if the user has downloaded the pass
     """
-    return user_url(user) + "/downloaded"
+    return user_url(user) + "/downloaded/"
 
 def certificates_url(user: WifiUser):
     """
@@ -108,7 +108,7 @@ def certificates_url(user: WifiUser):
     Returns:
         url: URL for generating and obtaining the user certificates
     """
-    return user_url(user) + "/certificates"
+    return user_url(user) + "/certificates/"
 
 def crl_url(network: WifiNetworkLocation):
     """
@@ -118,4 +118,4 @@ def crl_url(network: WifiNetworkLocation):
     Returns:
         url: URL of the CRL of the network
     """
-    return BASE_URL + API_PATH + f"networks/{str(network.location_uuid)}/crl"
+    return BASE_URL + API_PATH + f"networks/{str(network.location_uuid)}/crl/"
