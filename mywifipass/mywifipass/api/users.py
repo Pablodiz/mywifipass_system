@@ -82,7 +82,7 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
 
     def get_certificates_symmetric_key(self, obj):
         """Return the symmetric key for the user's certificates."""
-        if obj.certificate.symmetric_key:
+        if obj.certificates_symmetric_key:
             return obj.certificates_symmetric_key.hex()
         return None
 
