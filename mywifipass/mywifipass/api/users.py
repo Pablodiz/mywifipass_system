@@ -72,13 +72,20 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
     end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
     description = serializers.CharField(source='wifiLocation.description', read_only=True)
     location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
-    
+    certificates_symmetric_key = serializers.SerializerMethodField()
     class Meta:
         model = WifiUser
         fields = [
             'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
             'description', 'location_name', 'certificates_symmetric_key'
         ]
+
+    def get_certificates_symmetric_key(self, obj):
+        """Return the symmetric key for the user's certificates."""
+        if obj.certificate.symmetric_key:
+            return obj.certificates_symmetric_key.hex()
+        return None
+
 
 class CheckUserSerializer(serializers.Serializer):
     """For checking user information before authorizing"""
@@ -279,32 +286,3 @@ class WifiUserViewSet(ModelViewSet):
     @swagger_auto_schema(tags = swagger_tags)
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
-
-##### NOT IN USE ANYMORE, AS THE SYMMETRIC KEY IS NOW SENT WITH THE "WIFI-PASS"
-# @api_view(['GET'])
-# def user_key(request, user_uuid: uuid, **kwargs):
-#     """
-#     Handles the HTTP request to retrieve the symmetric key for a WifiUser.
-    
-#     Args:
-#         request: The HTTP request object.
-#         uuid (uuid): The UUID of the WifiUser.
-    
-#     Returns:
-#         Response: A response containing the symmetric key or an error message.
-#     """
-#     try:
-#         user = get_object_or_404(WifiUser, user_uuid=user_uuid)
-#         if user.allow_access_expiration is None:
-#             # If the user has never been allowed access, we return a 403 Forbidden response
-#             return Response({'error': 'User has never been allowed access'}, status=status.HTTP_403_FORBIDDEN)
-#         if user.allow_access_expiration > timezone.now() and user.certificate.revoked is False:
-#             certificates_symmetric_key = user.certificates_symmetric_key.hex()
-#             return Response({'certificates_symmetric_key': certificates_symmetric_key}, status=status.HTTP_200_OK)
-#         else: 
-#             # If the user is not allowed access, no password is return, instead we return a 403 Forbidden response
-#             return Response({'error': 'User is not allowed access'}, status=status.HTTP_403_FORBIDDEN)
-#     except Http404: 
-#         return Response({'error': 'User with UUID ' + str(user_uuid) + ' not found'}, status=status.HTTP_404_NOT_FOUND)
-#     except Exception as e:
-#         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
