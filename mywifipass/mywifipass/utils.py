@@ -1,4 +1,5 @@
 import qrcode
+import threading
 from io import BytesIO 
 from mywifipass.models import WifiUser
 from django.core.mail import EmailMultiAlternatives
@@ -48,4 +49,9 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
         to=[user.email],
     )
     mail.attach_alternative(html_content, "text/html")
-    mail.send(fail_silently=True)
+    # Send mail in other thread
+    
+    def do_send_mail(): 
+        mail.send(fail_silently=True)
+    thread = threading.Thread(target=do_send_mail)
+    thread.start()
