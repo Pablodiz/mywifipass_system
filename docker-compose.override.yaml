@@ -1,0 +1,27 @@
+services:
+  radius:  
+    build: ./our_radius  
+    volumes:
+      - openvpn-config:/etc/openvpn  
+      - /etc/localtime:/etc/localtime:ro  
+    cap_add:
+      - NET_ADMIN  
+    devices:
+      - /dev/net/tun:/dev/net/tun
+  
+  openvpn:
+    container_name: openvpn-server
+    ports:
+      - "${OPENVPN_PORT}:1194/udp"  
+  freeradius:
+    deploy: 
+      replicas: 0
+
+  dashboard:
+    container_name: openwisp-dashboard
+
+volumes:
+  openvpn-config:  
+
+
+# docker compose down && docker volume prune && docker compose -f docker-compose.yaml  -f docker-compose.override.yaml up  -d

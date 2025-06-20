@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="event-container">
+  {% include 'mywifipass/common/event_header.html' %}
+  <form method="post" enctype="multipart/form-data" class="my-form">
+    {% csrf_token %}
+    
+    <div class="form-fields">
+      {{ form.as_p }}
+    </div>
+
+    <div class="submit-row text-center">
+      <button type="submit" class="my-button">Register</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,55 +1,75 @@
 services:
-  djangox509:
+  mywifipass:
     build:
       context: . # Because i need to copy this whole directory inside
-      dockerfile: Dockerfile_getEAP_TLS 
-    container_name: webapp
+      dockerfile: Dockerfile_mywifipass
+    container_name: mywifipass
     volumes:
-      - shared-certs:/djangox509/getEAP_TLS/server_certs
+      - shared-certs:/djangox509/mywifipass/server_certs
+      - webapp_secrets:/djangox509/mywifipass/secrets
+      - logos:/djangox509/mywifipass/logos
     ports:
-      - "10000:8000"
-    working_dir: /djangox509/getEAP_TLS
+      - "${WEBAPP_PORT}:8000"
+    working_dir: /djangox509/mywifipass
     networks:
-      - our_network
+      - mywifipass_network
     depends_on:
-      mysql:
+      database:
         condition: service_healthy
-    env_file:
-      - ./our_mysql/config.env
     environment:
-      - MYSQL_SERVER=mysql-server
+      - DB_HOST=database # Name of the Container, do not change 
+      - DB_NAME
+      - DB_USER
+      - DB_PASS
+      - DEBUG
+      - EMAIL_HOST_USER
+      - EMAIL_HOST_PASSWORD
+      - EMAIL_HOST
+      - EMAIL_USE_TLS
+      - EMAIL_HOST_PORT
+      - DOMAIN
+      - SSL 
+      - TIME_ZONE
   radius:
     build: ./our_radius
     container_name: radius-server
     ports:
-      - "1812:1812/udp"
-    env_file:
-      - ./our_radius/config.env
+      - "${RADIUS_PORT}:1812/udp"
+    environment:
+      - RADIUS_CLIENT_IP
     volumes:
       - shared-certs:/etc/raddb/server_certs
       - radius_config:/etc/raddb
+      - ./our_radius/RADIUS_SECRET:/etc/raddb/secret/
     networks:
-      - our_network
+      - mywifipass_network
     restart: always
-  mysql:
-    image: mysql:8.0
-    container_name: mysql-server
-    env_file:
-      - ./our_mysql/config.env
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - our_network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 3
+  database:
+      image: postgres:15
+      container_name: database
+      environment:
+        - POSTGRES_DB=${DB_NAME}
+        - POSTGRES_USER=${DB_USER}
+        - POSTGRES_PASSWORD=${DB_PASS}
+      volumes:
+        - database_data:/var/lib/postgresql/data
+      networks:
+        - mywifipass_network
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres}"]
+        interval: 5s
+        timeout: 5s
+        retries: 3
 volumes:
   shared-certs:  # Shared volume for certificates
-  mysql_data:  # Volume for MySQL
+  database_data:  # Volume for database
   radius_config: # Volume for RADIUS server configuration
+  webapp_secrets: # Volume for Django secrets
+  logos: # Volume for event logos
 
 networks:
-  our_network:
-    driver: bridge
+  mywifipass_network:
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+

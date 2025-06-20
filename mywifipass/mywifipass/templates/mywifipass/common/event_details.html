@@ -1,0 +1,16 @@
+{% include 'mywifipass/common/event_header.html' %}
+<div class="event-details">
+    <ul class="details-list">
+        {% include 'mywifipass/common/event_details_always_present.html' %}
+
+        {% if location.description %}
+        <li>
+            <div class="label-container">
+                <span class="detail-icon">📝</span>
+                <span class="detail-label">Description:</span>
+            </div>
+            <span class="detail-value">{{ location.description }}</span>
+        </li>
+        {% endif %}
+    </ul>
+</div>

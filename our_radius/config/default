@@ -302,9 +302,9 @@ listen {
 #  need to setup hints for the remote radius server
 authorize {
 	if ("%{Called-Station-Id}" =~ /:(.+)$/) {
-    	update control {
-    	  	Proxy-To-Realm := "%{1}"
-    	}
+		update control {
+			Proxy-To-Realm := `/usr/local/bin/normalize_ssid.sh %{1}`
+		}
 	}
 	#
 	#  Take a User-Name, and perform some checks on it, for spaces and other

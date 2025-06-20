@@ -1,0 +1,22 @@
+# Rest API
+djangorestframework==3.16.0
+## Swagger documentation 
+drf-yasg==1.21.10
+## Nested routers
+drf-nested-routers==0.94.2
+# Functionalities
+## Qrcode creation
+qrcode==8.2
+## Image processing
+pillow==11.2.1
+## Encryption
+pycryptodome==3.22.0
+## .env file usage
+python-decouple==3.8
+# Database
+psycopg2-binary==2.9.10
+# Production
+## Web server
+gunicorn==23.0.0
+## Static files
+whitenoise==6.9.0
