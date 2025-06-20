@@ -1,0 +1,38 @@
+eap eap___SSID__ {
+	default_eap_type = tls
+	timer_expire = 60
+	dedup_key = "%{Calling-Station-Id}"
+	ignore_unknown_eap_types = no 
+	cisco_accounting_username_bug = no
+	max_sessions = ${max_requests}
+	
+	tls-config tls-common {
+		private_key_file = /etc/raddb/server_certs/__SSID__/server.key
+		certificate_file = /etc/raddb/server_certs/__SSID__/server.pem
+		ca_path = /etc/raddb/server_certs/__SSID__/ca
+		auto_chain = yes
+		cipher_list = "DEFAULT"
+		cipher_server_preference = no
+		tls_min_version = "1.2"
+		tls_max_version = "1.3"
+		ecdh_curve = ""
+		check_crl = yes
+
+		cache {
+			enable = yes
+			lifetime = 24 # hours
+		    name = "EAP module"
+			persist_dir = "${db_dir}/tlscache"
+			store {
+				Tunnel-Private-Group-Id
+			}
+		}
+	}
+
+
+	#  EAP-TLS
+	tls {
+		#  Point to the common TLS configuration
+		tls = tls-common
+	}
+}

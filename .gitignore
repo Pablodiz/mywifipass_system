@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
++# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 
@@ -68,3 +68,6 @@ Pipfile
 
 # IDE specific files
 .idea
+
+
+*/pruebas/*

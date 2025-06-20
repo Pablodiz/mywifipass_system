@@ -1,0 +1,2 @@
+*/1 * * * * /usr/local/bin/process_ssids.sh
+* */12 * * * /usr/local/bin/automatic_crl_update.sh

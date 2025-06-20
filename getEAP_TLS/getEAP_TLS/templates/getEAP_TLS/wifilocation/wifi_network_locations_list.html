@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block breadcrumb %}
+<ol class="breadcrumb">
+    <li class="breadcrumb-item active" aria-current="page">Events</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<h1 class="event-title">Events</h1>
+<div class="container">
+    {% for location in locations %}
+      <div class="event-container hover-card">
+        <a href="{% url 'wifi_location_details' location.location_uuid %}" class="text-decoration-none">
+            <h2 class="event-title">{{ location.name }}</h2>
+            <div class="event-details">
+
+              <ul class="details-list">
+                {% if location.location %}
+                <li>
+                  <span class="detail-label">Location:</span> 
+                  <span class="detail-value">{{ location.location }}</span>
+                </li>
+                {% endif %}
+                {% if location.start_date %}
+                <li>
+                  <span class="detail-label">Start Date:</span> 
+                  <span class="detail-value">March 29, 2025</span>
+                </li>
+                {% endif %}
+                {% if location.end_date %}
+                <li>
+                  <span class="detail-label">End Date:</span> 
+                  <span class="detail-value">March 29, 2035</span>
+                </li>
+                {% endif %}
+              </ul>
+            </div>  
+          </div>
+          <div class="submit-row text-center mb-4">
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+{% endblock %}

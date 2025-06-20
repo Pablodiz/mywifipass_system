@@ -1,0 +1,55 @@
+services:
+  djangox509:
+    build:
+      context: . # Because i need to copy this whole directory inside
+      dockerfile: Dockerfile_getEAP_TLS 
+    container_name: webapp
+    volumes:
+      - shared-certs:/djangox509/getEAP_TLS/server_certs
+    ports:
+      - "10000:8000"
+    working_dir: /djangox509/getEAP_TLS
+    networks:
+      - our_network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./our_mysql/config.env
+    environment:
+      - MYSQL_SERVER=mysql-server
+  radius:
+    build: ./our_radius
+    container_name: radius-server
+    ports:
+      - "1812:1812/udp"
+    env_file:
+      - ./our_radius/config.env
+    volumes:
+      - shared-certs:/etc/raddb/server_certs
+      - radius_config:/etc/raddb
+    networks:
+      - our_network
+    restart: always
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-server
+    env_file:
+      - ./our_mysql/config.env
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - our_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+volumes:
+  shared-certs:  # Shared volume for certificates
+  mysql_data:  # Volume for MySQL
+  radius_config: # Volume for RADIUS server configuration
+
+networks:
+  our_network:
+    driver: bridge

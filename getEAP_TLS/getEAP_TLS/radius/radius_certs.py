@@ -1,0 +1,62 @@
+import os
+from getEAP_TLS.models import WifiNetworkLocation
+
+# Export directory
+RADIUS_PENDING_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/pending"
+RADIUS_PROCESSED_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/processed"
+RADIUS_DELETION_CERT_DIR = "/djangox509/getEAP_TLS/server_certs/deletion"
+RADIUS_UPDATE_CRL = "/djangox509/getEAP_TLS/server_certs/update_crl"
+
+def export_certificates(wifiLocation: WifiNetworkLocation):
+    """
+    Exports the certificates for the radius server to use.
+    """
+    # We create the directories if they don't exist (they should)
+    if not os.path.exists(RADIUS_PENDING_CERT_DIR):
+        os.makedirs(RADIUS_PENDING_CERT_DIR)
+
+    if not os.path.exists(RADIUS_PROCESSED_CERT_DIR):
+        os.makedirs(RADIUS_PROCESSED_CERT_DIR)
+
+    ssid_path = os.path.join(RADIUS_PENDING_CERT_DIR, f'{wifiLocation.SSID}')
+    
+    # We create the directorie for the SSID if it doesn't exist
+    if not os.path.exists(ssid_path):
+        os.makedirs(ssid_path)
+
+    cert_path = os.path.join(ssid_path, f'server.pem')
+    key_path = os.path.join(ssid_path, f'server.key')
+    ca_path = os.path.join(ssid_path, f'ca.pem')
+    crl_path = os.path.join(ssid_path, f'crl.pem') # It will be empty but it must exist
+    
+    with open(key_path, 'w') as key_file:
+        key_file.write(wifiLocation.radius_Certificate.private_key)
+
+    with open(cert_path, 'w') as cert_file:
+        cert_file.write(wifiLocation.radius_Certificate.certificate)
+
+    with open(ca_path, 'w') as ca_file:
+        ca_file.write(wifiLocation.certificates_CA.certificate)
+    
+    with open(crl_path, 'w') as crl_file:
+        crl_file.write(wifiLocation.certificates_CA.crl.decode('utf-8'))
+
+def mark_ssid_for_deletion(wifiLocation: WifiNetworkLocation):
+    """
+    Marks an SSID for deletion by creating a file with its name in the deletion directory.
+    """
+    ssid_path = os.path.join(RADIUS_DELETION_CERT_DIR, f'{wifiLocation.SSID}')
+
+    # We create a file with the SSID name in the deletion directory
+    with open(ssid_path, 'w') as ssid_file:
+        ssid_file.write(wifiLocation.SSID)
+
+def mark_ssid_to_update_crl(wifiLocation: WifiNetworkLocation):
+    """
+    Marks an SSID for update CRL by creating a file with its name in the deletion directory.
+    """
+    ssid_path = os.path.join(RADIUS_UPDATE_CRL, f'{wifiLocation.SSID}')
+
+    # We create a file with the SSID name in the update_crl directory
+    with open(ssid_path, 'w') as ssid_file:
+        ssid_file.write(wifiLocation.SSID)
