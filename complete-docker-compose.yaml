@@ -1,0 +1,9 @@
+include:
+   - path: docker-compose.yaml
+     project_directory: .
+     env_file: .env
+   - path: docker-openwisp/docker-compose.yml
+     project_directory: docker-openwisp
+     env_file: .env 
+
+# docker compose -f complete-docker-compose.yaml  -f docker-compose.override.yaml up -d

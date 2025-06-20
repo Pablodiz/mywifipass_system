@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="event-container">  
+  {% include 'mywifipass/common/event_details.html' %}
+  <div class="submit-row text-center mb-4">
+    {% if location.is_registration_open %} 
+      {% if location.form_link %}
+        <button type="button" class="my-button" onclick="window.location.href='{{ location.form_link }}'">Register for the event</button>
+      {% else %}
+        <button type="button" class="my-button" onclick="window.location.href='register';">Register for the event</button>
+      {% endif %}
+    {% else %}
+      <button type="button" class="my-button" disabled>Registration is closed</button>
+    {% endif %}
+  </div> 
+</div>
+
+{% endblock %}
+
+
+
+
+

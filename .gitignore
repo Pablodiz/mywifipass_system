@@ -70,4 +70,4 @@ Pipfile
 .idea
 
 
-*/pruebas/*
+docker-openwisp/
