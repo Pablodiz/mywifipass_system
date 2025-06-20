@@ -80,13 +80,17 @@ REST_FRAMEWORK = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# Database
+# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQL_DATABASE', default="mywifipass"),
-        'USER': os.getenv('MYSQL_USER', default="root"),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD', default=""),
-        'HOST': os.getenv('MYSQL_SERVER', default="localhost"),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', default="mywifipass"),
+        'USER': os.getenv('DB_USER', default="postgres"),
+        'PASSWORD': os.getenv('DB_PASS', default="postgres_pass"),
+        'HOST': os.getenv('DB_HOST', default="localhost"),
+        'PORT': "5432",
     }
 }
 
@@ -115,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = os.environ.get('TIME_ZONE', default='UTC')
+TIME_ZONE = os.environ.get('TZ', default='UTC')
 
 USE_I18N = False
 USE_TZ = True

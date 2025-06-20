@@ -14,7 +14,7 @@ pycryptodome==3.22.0
 ## .env file usage
 python-decouple==3.8
 # Database
-mysqlclient==2.2.7
+psycopg2-binary==2.9.10
 # Production
 ## Web server
 gunicorn==23.0.0
