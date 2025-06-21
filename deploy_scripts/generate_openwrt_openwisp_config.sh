@@ -3,17 +3,29 @@
 
 # Get env variables from .env file
 source "$(dirname "$0")/../.env"
-
 # Generate shadow password for SSH
 SSH_SHADOW=$(mkpasswd -m sha-512 $SSH_PASSWORD)
 # Get API token  
-TOKEN=$(curl -k -X POST $API_DOMAIN/api/v1/users/token/ -d "username=$USERNAME" -d "password=$PASSWORD" | jq -r .token)
+echo "Getting API token..., this may take a while (until the api is ready)"
+
+if [[ ! $API_DOMAIN =~ ^https?:// ]]; then
+    API_DOMAIN="https://$API_DOMAIN"
+fi
+
+while true; do
+    TOKEN=$(curl -k -s -X POST $API_DOMAIN/api/v1/users/token/ -d "username=$USERNAME" -d "password=$PASSWORD" 2>/dev/null | jq -r .token 2>/dev/null)
+    if [ "$TOKEN" != "null" ] && [ -n "$TOKEN" ] && [ "$TOKEN" != "" ]; then
+        break
+    fi
+    echo "API not ready, waiting 5 seconds..."
+    sleep 5
+done 
 # Get organizations
 ORGANIZATIONS=$(curl -k -X GET $API_DOMAIN/api/v1/users/organization/ -H "Authorization: Bearer $TOKEN")
 #get the ORG_UUID from the above json
 ORG_UUID=$(echo $ORGANIZATIONS | jq -r '.results[0].id')
 # Get OpenWISP secret
-OWISP_SECRET=$(docker exec docker-openwisp-postgres-1 psql -h localhost -U $DB_USER -d $DB_NAME -c "SELECT shared_secret FROM config_organizationconfigsettings WHERE organization_id = '$ORG_UUID';" | sed -n '3p' | awk '{print $1}')
+OWISP_SECRET=$(docker exec openwisp-postgres psql -h localhost -U $DB_USER -d $DB_NAME -c "SELECT shared_secret FROM config_organizationconfigsettings WHERE organization_id = '$ORG_UUID';" | sed -n '3p' | awk '{print $1}')
 
 cat <<EOF > configure_openwisp.sh
 #!/bin/ash 

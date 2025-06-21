@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e  # Exit on any error
 
+source ./.env
+
 chmod +x ./deploy_scripts/*.sh
 
 # Función para mostrar ayuda
@@ -8,10 +10,12 @@ show_help() {
     echo "Usage: $0 [OPTION]"
     echo ""
     echo "Options:"
-    echo "  all         Deploy all services (OpenWISP + MyWifiPass)"
-    echo "  openwisp    Download OpenWISP repository to configure it (with option 'all', its automated)" 
-    echo "  mywifipass  Deploy only MyWifiPass services"
-    echo "  help        Show this help message"
+    echo "  all              Deploy all services (OpenWISP + MyWifiPass)"
+    echo "  openwisp         Download OpenWISP repository to configure it (with option 'all', its automated)" 
+    echo "  mywifipass       Deploy only MyWifiPass services"
+    echo "  stop-all         Stop all services"
+    echo "  stop-mywifipass  Stop MyWifiPass services"
+    echo "  help             Show this help message"
     echo ""
     echo "Examples:"
     echo "  $0 all"
@@ -23,8 +27,7 @@ download_openwisp(){
         echo "Cloning OpenWISP repository..."
         git clone https://github.com/openwisp/docker-openwisp.git docker-openwisp
         cd docker-openwisp
-        git checkout 7603dc2723f064cda35d0693b9813c2591cb6d1a # Last checked commit
-        make pull
+        git checkout 7603dc2723f064cda35d0693b9813c2591cb6d1a # Last checked working commit
         cd .. 
     fi
 }
@@ -36,25 +39,31 @@ else
     PROTOCOL="http"
 fi
 
-# Function for deploying mywifipass + openwisp 
-deploy_all() {
-    echo "Deploying all services..."
-    download_openwisp
-    echo "Building and starting all services..."
-    cp .env docker-openwisp/.env
-    docker compose -f complete-docker-compose.yaml -f docker-compose.override.yaml up -d --build
-    echo "Configuring OpenVPN for RADIUS server..." 
-    ./deploy_scripts/create_radius_openvpn_config.sh
-    echo "Creating a template for EAP-TLS in OpenWISP Dashboard..."
-    docker cp ./deploy_scripts/create_tls_template.py openwisp-dashboard:/opt/openwisp
-    docker exec -it -e RADIUS_PORT=1812 -e RADIUS_SERVER=10.8.0.10 -e RADIUS_SECRET=$(cat ./our_radius/RADIUS_SECRET/secret.txt) openwisp-dashboard python3 create_tls_template.py
-    echo "Generating script to configure openwisp in access points..."
-    ./deploy_scripts/create_openwisp_config.sh
-    echo "✅ All services deployed successfully!"
-    echo "OpenWISP Dashboard should be available at: ${DASHBOARD_DOMAIN}"
-    echo "MyWifiPass should be available at: ${PROTOCOL}://localhost:${WEBAPP_PORT:-10000}"
+# Function for configuring mywifipass + openwisp 
+setup_all() {
+    # if [ ! -f ./deploy_scripts/done ]; then
+        touch ./deploy_scripts/done
+        echo "Configuring OpenVPN for RADIUS server..." 
+        ./deploy_scripts/create_radius_openvpn_config.sh
+        echo "Creating a template for EAP-TLS in OpenWISP Dashboard..."
+        docker cp ./deploy_scripts/create_tls_template.py openwisp-dashboard:/opt/openwisp
+        docker exec -it -e RADIUS_PORT=1812 -e RADIUS_SERVER=10.8.0.10 -e RADIUS_SECRET=$(cat ./our_radius/RADIUS_SECRET/secret.txt) openwisp-dashboard python3 create_tls_template.py
+    # fi
 }
 
+# Function for deploying all services
+deploy_all() {
+    echo "Starting deployment of all services..."
+    download_openwisp
+    cp .env docker-openwisp/.env
+    docker compose -f complete-docker-compose.yaml -f docker-compose.override.yaml up -d --pull always
+    setup_all
+    echo "Generating script to configure openwisp in access points..."
+    ./deploy_scripts/generate_openwrt_openwisp_config.sh
+    echo "✅ All services deployed successfully!"
+    echo "OpenWISP Dashboard should be available at: https://${DASHBOARD_DOMAIN}"
+    echo "MyWifiPass should be available at: ${PROTOCOL}://localhost:${WEBAPP_PORT:-10000}"}
+}
 # Function for deploying only MyWifiPass
 deploy_mywifipass() {
     echo "Deploying MyWifiPass services..."    
@@ -84,6 +93,16 @@ case "$1" in
     "openwisp")
         download_openwisp
         ;;
+    "stop-all")
+        echo "Stopping all services..."
+        docker compose -f complete-docker-compose.yaml -f docker-compose.override.yaml down
+        echo "✅ All services stopped successfully!"
+        ;;
+    "stop-mywifipass")
+        echo "Stopping MyWifiPass services..."
+        docker compose -f docker-compose.yaml down
+        echo "✅ MyWifiPass services stopped successfully!"
+        ;;
     "help"|"-h"|"--help")
         show_help
         ;;
@@ -95,5 +114,3 @@ case "$1" in
 esac
 
 echo ""
-echo "To check status: docker compose ps"
-echo "To view logs: docker compose logs -f [service_name]"
