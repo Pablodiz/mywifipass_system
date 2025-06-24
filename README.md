@@ -88,6 +88,10 @@ When deploying with the `all` option, MyWifiPass automatically generates a confi
 - **[MyWifiPass Android](https://github.com/Pablodiz/mywifipass_android)**: Android app for automated network configuration
 - **[Main Project Repository](https://github.com/Pablodiz/TFG_proyecto)**: Complete project documentation and overview
 
+## User manual
+
+Refer to [the user manual](./user_manual.md) for help managing the system. 
+
 ## License
 
 This project is part of the MyWifiPass ecosystem designed to simplify enterprise wireless security deployment.
