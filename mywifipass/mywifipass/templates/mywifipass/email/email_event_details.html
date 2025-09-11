@@ -1,0 +1,18 @@
+<div class = "event-header"> 
+    <h1 class="email-event-title">{{ location.name }}</h1>
+</div>        
+<div class="event-details">
+    <ul class="details-list">
+        {% include 'mywifipass/email/email_event_details_always_present.html' %}
+
+        {% if location.description %}
+        <li>
+            <div class="label-container">
+                <span class="detail-icon">📝</span>
+                <span class="email-detail-label">Description:</span>
+            </div>
+            <span class="email-detail-value">{{ location.description }}</span>
+        </li>
+        {% endif %}
+    </ul>
+</div>
