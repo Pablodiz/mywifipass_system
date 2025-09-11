@@ -170,7 +170,7 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
         user = self.get_object()
-        url = urls.wifipass_download_url(user)
+        url = urls.email_url(user)
         buffer = generate_qr_code(url)
         
         response = FileResponse(buffer, content_type="image/png")
