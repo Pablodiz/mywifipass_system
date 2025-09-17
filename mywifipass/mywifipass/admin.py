@@ -142,9 +142,9 @@ class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiNetworkLocation model
     """
-    list_display = ["name", "SSID", "location", "start_date", "end_date", "is_enabled_in_radius", "is_visible_in_web"]
+    list_display = ["name", "SSID", "location", "start_date", "end_date", "is_enabled_in_radius", "is_visible_in_web", "requires_validator"]
     search_fields = ["name", "SSID", "description", "location"]
-    fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web"]
+    fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web", "requires_validator"]
 
 
 admin.site.register(WifiUser, WifiUserAdmin)

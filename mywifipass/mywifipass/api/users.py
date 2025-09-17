@@ -223,16 +223,22 @@ class WifiUserViewSet(ModelViewSet):
         f"""GET {USER_PATH}certificates/"""
         user = self.get_object()
         
-        if not user.allow_access_expiration or user.allow_access_expiration <= timezone.now():
-            return Response(
-                {'error': 'User is not allowed to access'}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Check if the network requires validator
+        if user.wifiLocation.requires_validator:
+            # User needs to be validated by admin
+            if not user.allow_access_expiration or user.allow_access_expiration <= timezone.now():
+                return Response(
+                    {'error': 'User is not allowed to access'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        # If network doesn't require validator, skip validation check
         
         # Generate certs
         customcert, certificate_pem, private_key_pem = user.create_certificate()
         user.certificate = customcert
-        user.allow_access_expiration = None
+        if user.wifiLocation.requires_validator:
+            # Only reset expiration if network requires validator
+            user.allow_access_expiration = None
         user.save(send_email=False)
         
         # Convert to objects used by pkcs12
