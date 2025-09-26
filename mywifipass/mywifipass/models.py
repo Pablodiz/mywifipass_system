@@ -148,7 +148,7 @@ class WifiUser(models.Model):
         self.has_attended = True
         self.allow_access_expiration = None
         self.save(send_email=False)
-        
+
     def sign_csr(self, csr_pem: str) -> tuple:
         """
         Sign a CSR for the user
@@ -313,7 +313,7 @@ class WifiUser(models.Model):
             send_mail(self, update=update)
             self.email_sent = True
             self.email_sent_date = timezone.now()
-            super().save(update_fields=['email_sent', 'email_sent_date'], send_email=False)
+            super().save(update_fields=['email_sent', 'email_sent_date'])
             
 
     def send_email_manually(self):
