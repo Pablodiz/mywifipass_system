@@ -139,3 +139,23 @@ def email_url(user: WifiUser):
         url: URL sent in an email to the user
     """
     return "https://pablodiz.github.io/mywifipass?url=" + wifipass_download_url(user)
+
+def check_user_authorized_url(user: WifiUser):
+    """
+    Function to get the URL for checking if the user is authorized
+    Args:
+        user: WifiUser for whom the url is requested
+    Returns:
+        url: URL for checking if the user is authorized
+    """
+    return base_url(user) + "/check_user_authorized/"
+
+def sign_certificate_url(user: WifiUser):
+    """
+    Function to get the URL for signing the user's certificate
+    Args:
+        user: WifiUser for whom the url is requested
+    Returns:
+        url: URL for signing the user's certificate
+    """
+    return base_url(user) + "/sign_certificate/"

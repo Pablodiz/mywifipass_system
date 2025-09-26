@@ -33,7 +33,25 @@ class MyCustomCA(AbstractCa):
         ])
 
         return cert
-    
+
+    def sign_certificate(self, cert):
+        """
+        Sign a certificate using this CA's private key
+        
+        Args:
+            cert: X509 certificate object to be signed
+            
+        Returns:
+            The signed certificate
+        """
+        # Set the issuer of the certificate to this CA
+        cert.set_issuer(self.x509.get_subject())
+        
+        # Sign the certificate with this CA's private key
+        cert.sign(self.pkey, str(self.digest))
+        
+        return cert
+
     @property
     def crl(self):
         """
@@ -112,14 +130,27 @@ class WifiUser(models.Model):
     email_sent = models.BooleanField(default=False, help_text="Indicates if registration email has been sent to the user")
     email_sent_date = models.DateTimeField(blank=True, null=True, help_text="Date when the last email was sent")
 
-    def create_certificate(self) -> tuple:
-        """
-        Create a certificate for the user
+    @property
+    def is_user_authorized(self):
+        if self.wifiLocation.requires_validator:
+            # User needs to be validated by admin
+            if not self.allow_access_expiration or self.allow_access_expiration <= timezone.now():
+                return False
+        else: 
+            return True
 
-        Returns the MyCustomCert object, the certificate and the private key
+    def sign_csr(self, csr_pem: str) -> tuple:
+        """
+        Sign a CSR for the user
+
+        Args:
+            csr_pem: The PEM encoded CSR to be signed
+
+        Returns:
+            Tuple containing (certificate_pem, ca_certificate_pem)
         """
         if not self.wifiLocation:
-            raise ValueError("WifiNetworkLocation is required to create a certificate.")
+            raise ValueError("WifiNetworkLocation is required to sign a CSR.")
         
         if self.certificate:
             self.revoke_certificate()
@@ -127,21 +158,97 @@ class WifiUser(models.Model):
         # Get the certificate's CA from the wifi location
         ca = self.wifiLocation.certificates_CA
 
-        # Create the certificate
-        cert = MyCustomCert(
+        # Load the CSR
+        csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr_pem)
+
+        # Create a new X509 certificate
+        cert = crypto.X509()
+        
+        # Fill subject from CSR
+        cert.set_subject(csr.get_subject())
+        
+        # Set certificate properties
+        cert.set_version(0x2)  # version 3
+        cert.set_serial_number(int(str(uuid.uuid4().int)[:16]))  # Generate serial number
+        cert.set_notBefore(bytes(str(ca.validity_start.strftime('%Y%m%d%H%M%SZ')), 'utf8'))
+        cert.set_notAfter(bytes(str(ca.validity_end.strftime('%Y%m%d%H%M%SZ')), 'utf8'))
+        
+        # Set the public key from the CSR
+        cert.set_pubkey(csr.get_pubkey())
+        
+        # Add basic extensions for end-entity certificate
+        cert.add_extensions([
+            crypto.X509Extension(b'basicConstraints', False, b'CA:FALSE'),
+            crypto.X509Extension(b'keyUsage', True, b'digitalSignature,keyEncipherment'),
+            crypto.X509Extension(b'subjectKeyIdentifier', False, b'hash', subject=cert)
+        ])
+        
+        # Add authorityKeyIdentifier
+        cert.add_extensions([
+            crypto.X509Extension(
+                b'authorityKeyIdentifier',
+                False,
+                b'keyid:always,issuer:always',
+                issuer=ca.x509
+            )
+        ])
+
+        # Sign the certificate with the CA
+        signed_cert = ca.sign_certificate(cert)
+
+        # Convert to PEM format
+        certificate_pem = crypto.dump_certificate(crypto.FILETYPE_PEM, signed_cert).decode('utf-8')
+        ca_certificate_pem = ca.certificate
+
+        # Create and save the certificate record
+        cert_record = MyCustomCert(
             name=f"{self.name}'s Certificate",
             ca=ca,
             common_name=self.name,
             email=self.email,
             validity_start=ca.validity_start,
             validity_end=ca.validity_end,
+            serial_number=str(signed_cert.get_serial_number()),
+            certificate=certificate_pem,
+            private_key=''  # Private key is not available when signing a CSR
         )
-
-        certificate_pem, private_key_pem = cert.save(return_cert_fields=True)
         
-        return cert, certificate_pem, private_key_pem         
+        cert_record.save()
+        self.certificate = cert_record
+        self.save()
 
-    def save(self, send_email: bool = True, recreate_certificate:bool = False, *args, **kwargs):
+        return certificate_pem, ca_certificate_pem
+    
+    # def create_certificate(self) -> tuple:
+    #     """
+    #     Create a certificate for the user
+
+    #     Returns the MyCustomCert object, the certificate and the private key
+    #     """
+    #     if not self.wifiLocation:
+    #         raise ValueError("WifiNetworkLocation is required to create a certificate.")
+        
+    #     if self.certificate:
+    #         self.revoke_certificate()
+
+    #     # Get the certificate's CA from the wifi location
+    #     ca = self.wifiLocation.certificates_CA
+
+    #     # Create the certificate
+    #     cert = MyCustomCert(
+    #         name=f"{self.name}'s Certificate",
+    #         ca=ca,
+    #         common_name=self.name,
+    #         email=self.email,
+    #         validity_start=ca.validity_start,
+    #         validity_end=ca.validity_end,
+    #     )
+
+    #     certificate_pem, private_key_pem = cert.save(return_cert_fields=True)
+        
+    #     return cert, certificate_pem, private_key_pem         
+
+    def save(self, send_email: bool = True, *args, **kwargs):
         from mywifipass.utils import send_mail
         if not self.wifiLocation:
             raise ValueError("WifiNetworkLocation is required to create a WifiUser.")
@@ -177,21 +284,10 @@ class WifiUser(models.Model):
                         self.wifiLocation != original.wifiLocation):
                     update = True
                     
-                    # If user has certificate and data changed, revoke it
-                    if self.certificate:
-                        self.certificate.revoke()
-                        self.certificate = None
-                        
             except WifiUser.DoesNotExist:
                 # This is a new user, no need to check for changes
                 pass
         
-        # If certificate recreation is forced
-        if recreate_certificate and self.certificate:
-            self.certificate.revoke()
-            self.certificate = None
-            update = True
-
         # Mark email as not sent if user data changed
         if update and hasattr(self, 'email_sent'):
             self.email_sent = False
@@ -295,7 +391,7 @@ class WifiNetworkLocation(models.Model):
         self.certificates_CA = ca
         
         for user in WifiUser.objects.filter(wifiLocation=self):
-            if user.certificate:
+            if user.certificate: #TODO rethink this
                 user.save(send_email=True, recreate_certificate=True)  # Save the user to delete the certificate and notify they need a new one
 
     def save(self, *args, **kwargs):
