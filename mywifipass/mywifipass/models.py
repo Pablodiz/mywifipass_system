@@ -136,6 +136,8 @@ class WifiUser(models.Model):
             # User needs to be validated by admin
             if not self.allow_access_expiration or self.allow_access_expiration <= timezone.now():
                 return False
+            else:
+                return True
         else: 
             return True
 
