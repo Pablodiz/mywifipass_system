@@ -337,6 +337,137 @@
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
+
+    /* Mobile responsive styles - CRITICAL for Gmail and mobile email clients */
+    @media only screen and (max-width: 600px) {
+        /* Container adjustments for mobile */
+        .email-event-container {
+            max-width: 100% !important;
+            padding: 15px !important;
+            margin: 10px !important;
+        }
+        
+        .email-header {
+            padding: 20px !important;
+            margin: 10px !important;
+        }
+        
+        .app-warning {
+            padding: 20px !important;
+            margin: 10px !important;
+        }
+        
+        .qr-section {
+            padding: 20px !important;
+            margin: 10px !important;
+        }
+        
+        .steps {
+            padding: 15px !important;
+            margin: 10px !important;
+        }
+        
+        /* Typography adjustments for mobile */
+        .email-event-title {
+            font-size: 1.8rem !important;
+            line-height: 1.2 !important;
+        }
+        
+        h2 {
+            font-size: 1.8rem !important;
+            line-height: 1.2 !important;
+        }
+        
+        /* QR code responsive */
+        .qr-code img {
+            max-width: 200px !important;
+            height: auto !important;
+        }
+        
+        /* Download link mobile friendly */
+        .download-link {
+            display: block !important;
+            width: 80% !important;
+            text-align: center !important;
+            margin: 15px auto !important;
+            padding: 12px 20px !important;
+        }
+        
+        /* Form elements for mobile */
+        .my-form input {
+            font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+        
+        /* Details list mobile adjustments */
+        .details-list li {
+            margin-bottom: 12px !important;
+        }
+        
+        .detail-label, .detail-value {
+            font-size: 14px !important;
+        }
+        
+        /* Event container mobile */
+        .event-container {
+            margin: 20px 10px !important;
+            padding: 15px !important;
+        }
+        
+        /* Custom container mobile */
+        .custom-container {
+            padding: 0 10px !important;
+        }
+        
+        /* Breadcrumb mobile */
+        .breadcrumb {
+            margin: 0.5rem 10px !important;
+            padding: 0.5rem 1rem !important;
+            flex-wrap: wrap !important;
+        }
+        
+        /* Header mobile */
+        .header {
+            padding: 1rem !important;
+        }
+        
+        .header-container {
+            flex-direction: column !important;
+            text-align: center !important;
+        }
+        
+        .logo {
+            font-size: 1.2rem !important;
+        }
+    }
+
+    /* Gmail specific fixes - CRITICAL for Gmail compatibility */
+    @media screen and (max-width: 600px) {
+        /* Gmail Android app specific */
+        .gmail-mobile-forced-width {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        
+        /* Force Gmail to respect our mobile styles */
+        u + .body .email-event-container {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        
+        u + .body .qr-section {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+    }
+
+    /* High DPI displays - for better QR code rendering */
+    @media only screen and (-webkit-min-device-pixel-ratio: 2),
+           only screen and (min-device-pixel-ratio: 2) {
+        .qr-code img {
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+    }
 </style>
 
 
