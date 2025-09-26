@@ -169,6 +169,7 @@ class WifiUserViewSet(ModelViewSet):
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+        user.deauthorize()
         return Response({
             'signed_cert': signed_cert,
             'ca_cert': ca_cert

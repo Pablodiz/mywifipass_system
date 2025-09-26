@@ -141,6 +141,14 @@ class WifiUser(models.Model):
         else: 
             return True
 
+    def deauthorize(self):
+        """
+        Deauthorize the user
+        """
+        self.has_attended = True
+        self.allow_access_expiration = None
+        self.save(send_email=False)
+        
     def sign_csr(self, csr_pem: str) -> tuple:
         """
         Sign a CSR for the user
