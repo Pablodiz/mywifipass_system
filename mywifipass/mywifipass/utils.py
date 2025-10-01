@@ -44,34 +44,6 @@ def generate_qr_code_base64(data: str) -> str:
     return f"data:image/png;base64,{base64_data}"
 
 
-def create_email_qr_token(user: WifiUser) -> str:
-    """
-    Creates a temporary token for accessing QR image via email
-    """
-    import hashlib
-    import time
-    
-    # Create a unique token based on user + timestamp
-    timestamp = str(int(time.time()))
-    # Use pk (primary key) instead of id, and handle case where user might not have pk
-    user_id = getattr(user, 'pk', None) or getattr(user, 'id', str(hash(user.email)))
-    token_data = f"{user_id}:{user.email}:{timestamp}"
-    token = hashlib.sha256(token_data.encode()).hexdigest()[:32]
-    
-    # Store in user model (check if fields exist first)
-    try:
-        if hasattr(user, 'email_qr_token'):
-            user.email_qr_token = token
-        if hasattr(user, 'email_qr_token_created'):
-            user.email_qr_token_created = timestamp
-        user.save()
-    except Exception as e:
-        print(f"Could not save token to user model: {e}")
-        # Continue anyway, we'll use the token in the URL
-    
-    return token
-
-
 def send_mail(user: WifiUser, update: bool = False) -> None:
     from mywifipass.api.urls import user_qr_url, email_url # Import here to avoid circular import
     from email.mime.multipart import MIMEMultipart
@@ -160,56 +132,6 @@ El código QR también está adjunto a este email.
                 print(f"Fallback email sent to {user.email}")
             except Exception as e2:
                 print(f"Fallback email also failed: {e2}")
-    
-    thread = threading.Thread(target=do_send_mail)
-    thread.start()
-
-
-def send_mail_with_attachment(user: WifiUser, update: bool = False) -> None:
-    """
-    Alternative method that attaches QR as a regular attachment (not inline)
-    This works reliably across all email clients including Gmail
-    """
-    from mywifipass.api.urls import user_qr_url, email_url
-    
-    # Generate QR code
-    qr_data = email_url(user)
-    qr_buffer = generate_qr_code(qr_data)
-    qr_base64 = generate_qr_code_base64(qr_data)
-    
-    html_content = render_to_string(
-        "mywifipass/email/register_email.html",
-        context={
-            "location": user.wifiLocation, 
-            "qr_code_url": qr_base64,  # Use base64 in HTML
-            "qr_code_external": user_qr_url(user),  # External URL as backup
-            "pass_url": email_url(user),
-            "has_attachment": True  # Flag to show attachment notice
-        },
-    )
-
-    subject_text = "Your registration for the event: " + user.wifiLocation.name
-    if update:
-        subject_text = "Your registration has been updated for the event: " + user.wifiLocation.name
-
-    mail = EmailMultiAlternatives(
-        subject=subject_text,
-        body=f"Tu pase WiFi para {user.wifiLocation.name}:\n\n{email_url(user)}\n\nTambién encontrarás el código QR adjunto a este email.",
-        from_email=None,
-        to=[user.email],
-    )
-    
-    mail.attach_alternative(html_content, "text/html")
-    
-    # Attach QR as regular attachment (downloadable)
-    qr_buffer.seek(0)
-    mail.attach("QR_WiFi_Pass.png", qr_buffer.read(), "image/png")
-    
-    def do_send_mail(): 
-        try:
-            mail.send(fail_silently=False)
-        except Exception as e:
-            print(f"Failed to send email with attachment: {e}")
     
     thread = threading.Thread(target=do_send_mail)
     thread.start()

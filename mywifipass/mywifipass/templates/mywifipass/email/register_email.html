@@ -19,7 +19,7 @@
     </div>
     
     <div class="qr-section">
-        <h3>Escanea el QR Code</h3>
+        <h3>Escanea el código QR</h3>
         <div class="qr-code">
             <!-- Gmail-compatible inline attachment approach (like email signatures) -->
             <div style="text-align: center;">
@@ -29,20 +29,12 @@
                      onload="this.style.border='2px solid #28a745'; document.getElementById('qr-success').style.display='block';"
                      onerror="this.style.display='none'; document.getElementById('qr-fallback').style.display='block';">
                 
-                <!-- Success indicator for inline attachment -->
-                <div id="qr-success" style="display: none; margin-top: 10px; font-size: 12px; color: #28a745; font-weight: bold;">
-                    ✓ QR embebido en el email (como logos de empresa)
-                </div>
-                
                 <!-- Fallback: Base64 image -->
-                <div id="qr-fallback" style="display: none;">
+                <div id="qr-fallback" style="display:none;">
                     <img src="{{ qr_code_base64 }}" alt="QR Code para MyWifiPass (Respaldo)" 
                          style="max-width: 200px; width: 200px; height: 200px; display: block; margin: 0 auto; border: 2px solid #ffc107; border-radius: 8px; padding: 10px; background: white;"
                          onload="this.style.border='2px solid #28a745'; document.getElementById('qr-base64-success').style.display='block';"
                          onerror="document.getElementById('qr-final-fallback').style.display='block'; this.parentNode.style.display='none';">
-                    <div id="qr-base64-success" style="display: none; margin-top: 10px; font-size: 12px; color: #28a745; font-weight: bold;">
-                        ✓ QR cargado en modo respaldo
-                    </div>
                 </div>
                 
                 <!-- Final fallback: Text message -->
@@ -54,33 +46,16 @@
         </div>
         <p><strong>Escanea este código QR con la app MyWifiPass</strong></p>
         
-        {% if has_inline_qr %}
-        <!-- Inline QR explanation -->
-        <div style="margin-top: 15px; padding: 10px; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 6px; font-size: 12px; color: #0c5460;">
-            <p><strong>🎯 QR integrado en el email</strong> - Este código QR está embebido directamente en el email (como los logos de las empresas). Si no lo ves, tu cliente de email podría estar bloqueando imágenes.</p>
-        </div>
-        {% elif has_attachment %}
-        <!-- Attachment notice -->
-        <div style="margin-top: 15px; padding: 10px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; font-size: 12px; color: #155724;">
-            <p><strong>📎 También tienes el QR adjunto</strong> - Si no puedes ver la imagen de arriba, revisa los adjuntos de este email.</p>
-        </div>
-        {% endif %}
-        
-        <!-- Text fallback for maximum compatibility -->
-        <div style="margin-top: 15px; padding: 10px; background: #e8f4f8; border-radius: 6px; font-size: 12px; color: #666;">
-            <p><em>¿Problemas con el código QR? Algunos clientes de email bloquean imágenes. Usa el enlace directo de abajo como alternativa.</em></p>
-        </div>
-        
         <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 6px;">
-            <p><strong>O presiona <a href="{{ pass_url }}" style="word-break: break-all; color: #006A71;">este enlace</a> para abrirlo en la app</strong></p>
+            <p><strong>O presiona <a href="{{ pass_url }}" style="word-break: break-all; color: #006A71;">este enlace</a> para abrirlo directamente en la app.</strong></p>
         </div>
     </div>
     
     <div class="steps">
         <h3>📋 Pasos para conectarte:</h3>
         <ol>
-            <li>Descarga e instala <strong>MyWifiPass</strong></li>
-            <li>Abre la app y escanea el QR code</li>
+            <li>Instala la aplicación <strong>MyWifiPass</strong></li>
+            <li>Abre la app y escanea el código QR, o presiona en el enlace que indicamos arriba, para descargar tu pase WiFi</li>
             <li>¡Conéctate automáticamente al WiFi del evento!</li>
         </ol>
     </div>
