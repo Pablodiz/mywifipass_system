@@ -24,11 +24,12 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "revoke_certificate_button", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
-    fields = ["name", "email","id_document", "wifiLocation"]
-    list_filter = ["wifiLocation"]
+    fields = ["name", "email","id_document", "wifiLocation", "email_sent", "email_sent_date"]
+    list_filter = ["wifiLocation", "email_sent", "has_attended", "has_downloaded_pass"]
     list_editable = ["has_downloaded_pass", "has_attended"]
+    readonly_fields = ["email_sent", "email_sent_date"]
 
     def has_change_permission(self, request, obj=None):
         if obj and obj.certificate and obj.certificate.revoked:
@@ -37,6 +38,21 @@ class WifiUserAdmin(ModelAdmin):
                 request._revoked_message_shown = True
             return False
         return super().has_change_permission(request, obj)
+    
+    def send_email_button(self, obj: WifiUser):
+        if obj.email_sent:
+            url = f"/admin/mywifipass/wifiuser/{obj.user_uuid}/send_email/"
+            return format_html(
+                '<a class="button" style="{}" href="{}">Resend Email</a>',
+                button_style, url
+            )
+        else:
+            url = f"/admin/mywifipass/wifiuser/{obj.user_uuid}/send_email/"
+            return format_html(
+                '<a class="button" style="{}" href="{}">Send Email</a>',
+                button_style, url
+            )
+    send_email_button.short_description = "Email Actions"
     
     def show_qr_button(self, obj:WifiUser):
         url = user_qr_url(obj)
@@ -69,7 +85,8 @@ class WifiUserAdmin(ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path('import_csv/', self.admin_site.admin_view(self.import_csv), name="import_wifi_users"),
-            path('<uuid:uuid>/revoke_certificate/',self.admin_site.admin_view(self.revoke_certificate_view), name='revoke-certificate')            
+            path('<uuid:uuid>/revoke_certificate/',self.admin_site.admin_view(self.revoke_certificate_view), name='revoke-certificate'),
+            path('<uuid:uuid>/send_email/', self.admin_site.admin_view(self.send_email_view), name='send-email')
         ]
         return custom_urls + urls
 
@@ -136,15 +153,27 @@ class WifiUserAdmin(ModelAdmin):
             self.message_user(request, f"Certificate for user '{user.name}' has been revoked.", messages.SUCCESS)
         except ValueError as e:
             self.message_user(request, str(e), messages.ERROR)
+        return redirect(f"/admin/mywifipass/wifiuser/")
+        
+    def send_email_view(self, request, uuid):
+        user = get_object_or_404(WifiUser, user_uuid=uuid)
+        try:
+            success, message = user.send_email_manually()
+            if success:
+                self.message_user(request, f"Email sent successfully to '{user.name}' ({user.email})", messages.SUCCESS)
+            else:
+                self.message_user(request, f"Failed to send email to '{user.name}': {message}", messages.ERROR)
+        except Exception as e:
+            self.message_user(request, f"Error sending email to '{user.name}': {str(e)}", messages.ERROR)
         return redirect(f"/admin/mywifipass/wifiuser/")       
     
 class WifiNetworkLocationAdmin(ModelAdmin):
     """
     Admin class for a WifiNetworkLocation model
     """
-    list_display = ["name", "SSID", "location", "start_date", "end_date", "is_enabled_in_radius", "is_visible_in_web"]
+    list_display = ["name", "SSID", "location", "start_date", "end_date", "is_enabled_in_radius", "is_visible_in_web", "requires_validator", "send_emails_automatically"]
     search_fields = ["name", "SSID", "description", "location"]
-    fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web"]
+    fields = ["name", "SSID", "brief_description", "description", "location", "start_date", "end_date", "logo", "form_link", "is_registration_open", "is_enabled_in_radius", "is_visible_in_web", "requires_validator", "send_emails_automatically"]
 
 
 admin.site.register(WifiUser, WifiUserAdmin)
