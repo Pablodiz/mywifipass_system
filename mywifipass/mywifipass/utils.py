@@ -58,25 +58,32 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
     qr_base64 = generate_qr_code_base64(qr_data)
     
     # Use Content-ID for inline attachment (like email signatures)
+    # Play Store link - fallback to settings if provided
+    playstore_url = getattr(settings, 'MYWIFIPASS_PLAYSTORE_URL', 'https://play.google.com/store/apps/details?id=com.mywifipass')
+
     html_content = render_to_string(
         "mywifipass/email/register_email.html",
         context={
-            "location": user.wifiLocation, 
+            "location": user.wifiLocation,
             "qr_code_url": "cid:qr_wifi_pass",  # Content-ID reference (like logos)
             "qr_code_base64": qr_base64,        # Base64 as backup
             "pass_url": email_url(user),
-            "has_inline_qr": True               # Flag for inline QR
+            "has_inline_qr": True,              # Flag for inline QR
+            "playstore_url": playstore_url,
         },
     )
 
-    subject_text = "Your registration for the event: " + user.wifiLocation.name
+    subject_text = "Tu pase Wi-Fi para el evento: " + user.wifiLocation.name
     if update:
-        subject_text = "Your registration has been updated for the event: " + user.wifiLocation.name
+        subject_text = "Tu pase Wi-Fi para el evento: " + user.wifiLocation.name +" ha sido actualizado"
 
     # Create proper multipart/related message (like email signatures with logos)
     msg = MIMEMultipart('related')  # 'related' is key for inline attachments
     msg['Subject'] = subject_text
-    msg['From'] = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@mywifipass.com')
+    # Use a descriptive From name (e.g. "MyWifiPass <noreply@...>")
+    default_from = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@mywifipass.com')
+    from_name = getattr(settings, 'MYWIFIPASS_FROM_NAME', 'MyWifiPass')
+    msg['From'] = f"{from_name} <{default_from}>"
     msg['To'] = user.email
     
     # Create text version for clients that don't support HTML

@@ -149,6 +149,12 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# MyWifiPass specific defaults (configurable via environment)
+# URL to the app listing in Google Play (used in registration emails)
+MYWIFIPASS_PLAYSTORE_URL = os.getenv('MYWIFIPASS_PLAYSTORE_URL', 'https://play.google.com/store/apps/details?id=app.mywifipass')
+# Display name for the From header in outbound emails (e.g. "MyWifiPass")
+MYWIFIPASS_FROM_NAME = os.getenv('MYWIFIPASS_FROM_NAME', 'MyWifiPass')
+
 # URL configuration 
 DOMAIN = os.getenv('DOMAIN', default="localhost:8000")
 USER_PATH = "user/" 
