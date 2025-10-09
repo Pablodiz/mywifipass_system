@@ -6,9 +6,6 @@
 {% include 'styles.html' %}
 
 <div class="email-event-container" style="max-width:600px; margin:0 auto; width:100%; box-sizing:border-box; padding:12px;">
-    <div style="text-align:center; margin-bottom: 12px;">
-        <img src="{% static 'images/logo.png' %}" alt="MyWifiPass logo" style="max-width:160px; width:40%; height:auto; display:inline-block; border-radius:8px;">
-    </div>
     <div style="margin:18px auto; padding:14px; border-radius:10px; background-color:#f0fbfa; width:100%; max-width:560px; box-sizing:border-box; min-height:220px;">
         {% include 'mywifipass/email/email_event_details.html' %}
     </div>
@@ -22,7 +19,7 @@
         </tr></table>
     </div>
 
-    <div class="steps" style="margin:18px auto; padding:14px; border-radius:10px; background-color:#f0fbfa; width:100%; max-width:560px; box-sizing:border-box; min-height:220px;">
+    <div class="steps" style="margin:18px auto; padding:14px; border-radius:10px; background-color:#f0fbfa; width:100%; max-width:560px; box-sizing:border-box">
         <h3 style="margin:0 0 8px 0; color: #006A71; text-align:center;">📋 Pasos para conectarte:</h3>
         <ol style="margin:8px 0 0 18px; padding:0; color:#333;">
             <li>Instala la aplicación <a href="{{ playstore_url }}" style="display:inline-block; font-weight:bold;">MyWifiPass</a> en tu móvil</li>
