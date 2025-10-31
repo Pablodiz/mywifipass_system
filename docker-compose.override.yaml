@@ -6,7 +6,7 @@ services:
   radius:  
     build: ./our_radius  
     volumes:
-      - openvpn-config:/etc/openvpn  
+      - radius-openvpn-config:/etc/openvpn  
       - /etc/localtime:/etc/localtime:ro  
     cap_add:
       - NET_ADMIN  
@@ -15,17 +15,33 @@ services:
   
   openvpn:
     container_name: openvpn-server
+    volumes: 
+      - openvpn-config:/etc/openvpn
     ports:
       - "${OPENVPN_PORT}:1194/udp"  
+
   freeradius:
     deploy: 
       replicas: 0
 
   dashboard:
+    image: openwisp/openwisp-dashboard:24.11.2
     container_name: openwisp-dashboard
 
-volumes:
-  openvpn-config:  
+  celery:
+    image: openwisp/openwisp-dashboard:24.11.2
 
+  celery_monitoring:
+    image: openwisp/openwisp-dashboard:24.11.2
+  
+  celerybeat:
+    image: openwisp/openwisp-dashboard:24.11.2
+  
+  postgres:
+    container_name: openwisp-postgres
+
+volumes:
+  radius-openvpn-config:  
+  openvpn-config: 
 
 # docker compose down && docker volume prune && docker compose -f docker-compose.yaml  -f docker-compose.override.yaml up  -d
