@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from django.db import models
 from datetime import date, timedelta
 from django_x509.base.models import AbstractCa, AbstractCert
@@ -129,7 +133,7 @@ class WifiUser(models.Model):
     has_downloaded_pass = models.BooleanField(default=False)
     email_sent = models.BooleanField(default=False, help_text="Indicates if registration email has been sent to the user")
     email_sent_date = models.DateTimeField(blank=True, null=True, help_text="Date when the last email was sent")
-
+    android_version = models.CharField(blank=True, null=True)
     @property
     def is_user_authorized(self):
         if self.wifiLocation.requires_validator:
@@ -402,7 +406,7 @@ class WifiNetworkLocation(models.Model):
         
         for user in WifiUser.objects.filter(wifiLocation=self):
             if user.certificate: #TODO rethink this
-                user.save(send_email=True, recreate_certificate=True)  # Save the user to delete the certificate and notify they need a new one
+                user.save()  # Save the user to delete the certificate and notify they need a new one
 
     def save(self, *args, **kwargs):
         from mywifipass.radius.radius_certs import export_certificates, mark_ssid_for_deletion # Import here to avoid circular import
@@ -469,4 +473,4 @@ def signal_function_name(sender, instance, using, **kwargs):
             instance.certificate.revoke()
             instance.certificate = None
     except:
-        pass 
+        pass

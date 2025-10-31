@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 """
 Django settings for mywifipass project.
 
@@ -149,6 +153,12 @@ EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+# MyWifiPass specific defaults (configurable via environment)
+# URL to the app listing in Google Play (used in registration emails)
+MYWIFIPASS_PLAYSTORE_URL = os.getenv('MYWIFIPASS_PLAYSTORE_URL', 'https://play.google.com/store/apps/details?id=app.mywifipass')
+# Display name for the From header in outbound emails (e.g. "MyWifiPass")
+MYWIFIPASS_FROM_NAME = os.getenv('MYWIFIPASS_FROM_NAME', 'MyWifiPass')
+
 # URL configuration 
 DOMAIN = os.getenv('DOMAIN', default="localhost:8000")
 USER_PATH = "user/" 
@@ -188,4 +198,4 @@ BASE_URL = f"{http_header}{DOMAIN}/"
 
 # Configure the usage of a reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-EMAIL_TIMEOUT = 5 
+EMAIL_TIMEOUT = 5

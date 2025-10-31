@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from django.contrib.admin import ModelAdmin
 from django.contrib import admin
 from django.contrib import messages
@@ -24,7 +28,7 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "send_email_button", "revoke_certificate_button", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "android_version", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "wifiLocation", "email_sent", "email_sent_date"]
     list_filter = ["wifiLocation", "email_sent", "has_attended", "has_downloaded_pass"]
@@ -125,7 +129,9 @@ class WifiUserAdmin(ModelAdmin):
                     return HttpResponseRedirect(reverse('admin:mywifipass_wifiuser_changelist'))
                 
                 except Exception as e:
-                    self.message_user(request, f"An error occurred while processing the CSV file", level="error")
+                    import traceback
+                    self.message_user(request, f"An error occurred while processing the CSV file: {e}\n{traceback.format_exc()}", level="error")
+
         else:
             form = CSVImportForm()
         

@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from rest_framework.decorators import api_view
