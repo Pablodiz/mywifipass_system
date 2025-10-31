@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
@@ -22,7 +26,6 @@ import base64
 
 from drf_yasg.utils import swagger_auto_schema
 
-
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a WifiUser.
@@ -39,17 +42,17 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
     end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
     description = serializers.CharField(source='wifiLocation.description', read_only=True)
     location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
-    location_uuid = serializers.UUIDField(source='wifiLocation.location_uuid', read_only=True)
-    
+    location_uuid = serializers.UUIDField(source='wifiLocation.location_uuid', read_only=True)                   
     class Meta:
         model = WifiUser
         fields = [
             'user_uuid', 'name', 'email', 'id_document', 
             'has_attended', 'has_downloaded_pass', 'allow_access_expiration',
             'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
-            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key'
+            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized'
         ]
         read_only_fields = ['user_uuid', 'allow_access_expiration']
+    
 class WifiUserListSerializer(serializers.ModelSerializer):
     """Serializer for listing WifiUsers with basic information."""
     class Meta:
@@ -65,6 +68,7 @@ class WifiUserUpdateSerializer(serializers.ModelSerializer):
 
 class WifiUserWifiPassSerializer(serializers.ModelSerializer):
     """Serializer for downloading the WifiUser pass."""
+    email = serializers.EmailField(read_only=True)
     network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
     ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
     location = serializers.CharField(source='wifiLocation.location', read_only=True)
@@ -76,7 +80,7 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
     class Meta:
         model = WifiUser
         fields = [
-            'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
+            'email', 'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
             'description', 'location_name', 'certificates_symmetric_key'
         ]
 
@@ -92,6 +96,12 @@ class CheckUserSerializer(serializers.Serializer):
     id_document = serializers.CharField()
     name = serializers.CharField()
     authorize_url = serializers.URLField()
+
+class SignCSRSerializer(serializers.Serializer):
+    """For signing a CSR"""
+    csr = serializers.CharField()
+    token = serializers.CharField()
+    androidVersion = serializers.CharField()
 
 class WifiUserViewSet(ModelViewSet):
     """
@@ -141,6 +151,37 @@ class WifiUserViewSet(ModelViewSet):
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
     @swagger_auto_schema(tags = swagger_tags)
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    def sign_certificate(self, request, *args, **kwargs):
+        from mywifipass.api.urls import USER_PATH 
+        f"""POST {USER_PATH}sign_certificate/"""
+        user = self.get_object()
+        serializer = SignCSRSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        csr_pem = serializer.validated_data['csr']
+        # Pick the token and convert it from hex() to bytes
+        token_hex = serializer.validated_data['token']
+        token = bytes.fromhex(token_hex)    
+
+        # Convert memoryview to bytes for comparison
+        user_key = bytes(user.certificates_symmetric_key)
+        user.android_version = serializer.validated_data['androidVersion']
+
+        if token != user_key:
+            return Response({'error': 'Invalid token'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            signed_cert, ca_cert = user.sign_csr(csr_pem)
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.deauthorize()
+        return Response({
+            'signed_cert': signed_cert,
+            'ca_cert': ca_cert
+        }, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
+    
+    @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def download(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
@@ -158,8 +199,10 @@ class WifiUserViewSet(ModelViewSet):
         # Add urls to the response data
         data.update({
             'validation_url': urls.validation_url(user),
-            'certificates_url': urls.certificates_url(user),
+            'certificates_url': urls.sign_certificate_url(user),
             'has_downloaded_url': urls.has_downloaded_url(user),
+            'check_user_authorized_url': urls.check_user_authorized_url(user),
+            'is_user_authorized': user.is_user_authorized
         })
         
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
@@ -170,7 +213,7 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
         user = self.get_object()
-        url = urls.wifipass_download_url(user)
+        url = urls.email_url(user)
         buffer = generate_qr_code(url)
         
         response = FileResponse(buffer, content_type="image/png")
@@ -216,43 +259,64 @@ class WifiUserViewSet(ModelViewSet):
         
         return Response({'message': 'The user can now join the network.'})
         
+    # @swagger_auto_schema(tags = swagger_tags)
+    # @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    # def certificates(self, request, **kwargs):
+    #     from mywifipass.api.urls import USER_PATH 
+    #     f"""GET {USER_PATH}certificates/"""
+    #     user = self.get_object()
+        
+    #     Check if the network requires validator
+    #     if user.wifiLocation.requires_validator:
+    #         User needs to be validated by admin
+    #         if not user.allow_access_expiration or user.allow_access_expiration <= timezone.now():
+    #             return Response(
+    #                 {'error': 'User is not allowed to access'}, 
+    #                 status=status.HTTP_403_FORBIDDEN
+    #             )
+    #     If network doesn't require validator, skip validation check
+        
+    #     Generate certs
+    #     customcert, certificate_pem, private_key_pem = user.create_certificate()
+    #     user.certificate = customcert
+    #     if user.wifiLocation.requires_validator:
+    #         Only reset expiration if network requires validator
+    #         user.allow_access_expiration = None
+    #     user.save(send_email=False)
+        
+    #     Convert to objects used by pkcs12
+    #     cert = x509.load_pem_x509_certificate(certificate_pem.encode())
+    #     key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+    #     ca_cert = x509.load_pem_x509_certificate(user.wifiLocation.certificates_CA.certificate.encode())
+        
+    #     Serialize to PKCS#12 protecting with symmetric key
+    #     password = user.certificates_symmetric_key.hex()
+    #     p12_bytes = pkcs12.serialize_key_and_certificates(
+    #         name=b"wifiuser",
+    #         key=key,
+    #         cert=cert,
+    #         cas=[ca_cert],
+    #         encryption_algorithm=BestAvailableEncryption(password.encode())
+    #     )
+        
+    #     p12_b64 = base64.b64encode(p12_bytes).decode()
+    #     return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
+    
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
-    def certificates(self, request, **kwargs):
+    def check_user_authorized(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
-        f"""GET {USER_PATH}certificates/"""
+        f"""GET {USER_PATH}check_user_authorized/"""
         user = self.get_object()
         
-        if not user.allow_access_expiration or user.allow_access_expiration <= timezone.now():
+        if not user.is_user_authorized:
             return Response(
                 {'error': 'User is not allowed to access'}, 
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Generate certs
-        customcert, certificate_pem, private_key_pem = user.create_certificate()
-        user.certificate = customcert
-        user.allow_access_expiration = None
-        user.save(send_email=False)
-        
-        # Convert to objects used by pkcs12
-        cert = x509.load_pem_x509_certificate(certificate_pem.encode())
-        key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
-        ca_cert = x509.load_pem_x509_certificate(user.wifiLocation.certificates_CA.certificate.encode())
-        
-        # Serialize to PKCS#12 protecting with symmetric key
-        password = user.certificates_symmetric_key.hex()
-        p12_bytes = pkcs12.serialize_key_and_certificates(
-            name=b"wifiuser",
-            key=key,
-            cert=cert,
-            cas=[ca_cert],
-            encryption_algorithm=BestAvailableEncryption(password.encode())
-        )
-        
-        p12_b64 = base64.b64encode(p12_bytes).decode()
-        return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
-    
+        return Response({'message': 'User is authorized to access the network.'})
+
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def downloaded(self, request, **kwargs):

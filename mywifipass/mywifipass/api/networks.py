@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from django.http import HttpResponse
@@ -14,7 +18,7 @@ class WifiNetworkLocationSerializer(serializers.ModelSerializer):
             'name', 'SSID',
             'location', 'description', 'brief_description', 'start_date', 'end_date',
             'form_link', 'is_registration_open', 'is_enabled_in_radius', 
-            'is_visible_in_web', 'logo', 'location_uuid'
+            'is_visible_in_web', 'requires_validator', 'send_emails_automatically', 'logo', 'location_uuid'
         ]
         extra_kwargs = {
             # Optional fields
@@ -27,6 +31,8 @@ class WifiNetworkLocationSerializer(serializers.ModelSerializer):
             'is_registration_open': {'required': False},
             'is_enabled_in_radius': {'required': False},
             'is_visible_in_web': {'required': False},
+            'requires_validator': {'required': False},
+            'send_emails_automatically': {'required': False},
             'logo': {'required': False, 'allow_null': True},
             'location_uuid': {'read_only': True},
         }

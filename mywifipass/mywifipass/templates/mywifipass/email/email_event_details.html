@@ -1,0 +1,22 @@
+<!-- Copyright (c) 2025, Pablo Diz de la Cruz -->
+<!-- All rights reserved. -->
+<!-- Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information. -->
+
+<div class = "event-header" style="text-align:center;">
+    <h1 class="email-event-title" style="margin:0 auto; text-align:center;">{{ location.name }}</h1>
+</div>        
+<div class="event-details">
+    <ul class="details-list">
+        {% include 'mywifipass/email/email_event_details_always_present.html' %}
+
+        {% if location.description %}
+        <li>
+            <!-- <div class="label-container">
+                <span class="detail-icon">📝</span>
+                <span class="email-detail-label">Descripción:</span>
+            </div> -->
+            <span class="email-detail-value" style="margin-left:3px; margin-right:3px;">{{ location.description }}</span>
+        </li>
+        {% endif %}
+    </ul>
+</div>
