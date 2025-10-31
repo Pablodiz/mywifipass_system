@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 """
 Django settings for mywifipass project.
 
@@ -194,4 +198,4 @@ BASE_URL = f"{http_header}{DOMAIN}/"
 
 # Configure the usage of a reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-EMAIL_TIMEOUT = 5 
+EMAIL_TIMEOUT = 5

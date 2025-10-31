@@ -1,3 +1,7 @@
+# Copyright (c) 2025, Pablo Diz de la Cruz
+# All rights reserved.
+# Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
+
 from django.contrib.admin import ModelAdmin
 from django.contrib import admin
 from django.contrib import messages
@@ -125,7 +129,9 @@ class WifiUserAdmin(ModelAdmin):
                     return HttpResponseRedirect(reverse('admin:mywifipass_wifiuser_changelist'))
                 
                 except Exception as e:
-                    self.message_user(request, f"An error occurred while processing the CSV file", level="error")
+                    import traceback
+                    self.message_user(request, f"An error occurred while processing the CSV file: {e}\n{traceback.format_exc()}", level="error")
+
         else:
             form = CSVImportForm()
         
