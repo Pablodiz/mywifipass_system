@@ -76,3 +76,6 @@ docker-openwisp/
 dont_push/
 deploy_scripts/done
 *.csv
+CODE_REVIEW.md
+IMPLEMENTATION_PROGRESS.md
+CHANGELOG_SECURITY.md
