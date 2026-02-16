@@ -26,6 +26,14 @@ import base64
 
 from drf_yasg.utils import swagger_auto_schema
 
+# Rate limiting imports
+from mywifipass.api.throttles import (
+    CertificateSigningThrottle,
+    AuthorizationThrottle,
+    DownloadThrottle,
+    ValidationThrottle,
+)
+
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a WifiUser.
@@ -151,7 +159,7 @@ class WifiUserViewSet(ModelViewSet):
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[CertificateSigningThrottle])
     def sign_certificate(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}sign_certificate/"""
@@ -182,7 +190,7 @@ class WifiUserViewSet(ModelViewSet):
         }, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def download(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}download/"""
@@ -208,7 +216,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def qr(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
@@ -221,7 +229,7 @@ class WifiUserViewSet(ModelViewSet):
         return response
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser], throttle_classes=[ValidationThrottle])
     def validate(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}validate/"""
@@ -241,7 +249,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response(data)
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], throttle_classes=[AuthorizationThrottle])
     def authorize(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}authorize/"""
@@ -303,7 +311,7 @@ class WifiUserViewSet(ModelViewSet):
     #     return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[ValidationThrottle])
     def check_user_authorized(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}check_user_authorized/"""
@@ -318,7 +326,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response({'message': 'User is authorized to access the network.'})
 
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def downloaded(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}downloaded/"""

@@ -85,6 +85,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'mywifipass.api.throttles.LoginAttemptThrottle',
+        'mywifipass.api.throttles.CertificateSigningThrottle',
+        'mywifipass.api.throttles.AuthorizationThrottle',
+        'mywifipass.api.throttles.DownloadThrottle',
+        'mywifipass.api.throttles.ValidationThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'login_attempt': '5/minute',              # Login attempts per IP
+        'certificate_signing': '3/minute',         # CSR signing per user
+        'authorization': '10/minute',              # Admin authorization per user
+        'download': '20/minute',                   # Pass downloads per IP
+        'validation': '10/minute',                 # User validation checks per IP
+    }
 }
 
 # Database
