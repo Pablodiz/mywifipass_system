@@ -181,7 +181,9 @@ SECRET_KEY = secret_key
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ["0.0.0.0", "*"]
+# Allowed hosts - defaults to localhost, set ALLOWED_HOSTS env var to override
+# Example: ALLOWED_HOSTS=localhost,127.0.0.1,example.com
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost').split(',') if h.strip()]
 
 ssl = os.getenv('SSL', default='False').lower() in ('true', '1', 'yes')
 
