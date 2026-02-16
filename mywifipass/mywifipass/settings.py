@@ -15,7 +15,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 from pathlib import Path
 from decouple import Config, RepositoryEnv
-from django.core.management.utils import get_random_secret_key
 import os 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -165,18 +164,27 @@ USER_PATH = "user/"
 API_PATH = "api/"
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# If the secret key is defined we use it, if not we generate a new one and add it to the .env file
-secret_path = os.path.join(BASE_DIR, "secrets/.env")
-config = Config(RepositoryEnv(secret_path))
-try:
-    secret_key = config("DJANGO_SECRET_KEY")
-except:
-    secret = get_random_secret_key()
-    with open("/djangox509/mywifipass/secrets/.env", "w") as f:
-        f.write(f"\n{"DJANGO_SECRET_KEY"}='{secret}'")
-    secret_key = secret
+# Load from environment variable (preferred) or fail fast if not found
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
-SECRET_KEY = secret_key
+if not SECRET_KEY:
+    # Try to load from secrets file for backwards compatibility
+    secret_path = os.path.join(BASE_DIR, "secrets/.env")
+    if os.path.exists(secret_path):
+        try:
+            config = Config(RepositoryEnv(secret_path))
+            SECRET_KEY = config("DJANGO_SECRET_KEY")
+        except Exception:
+            pass
+
+# If still not found, raise an error
+if not SECRET_KEY:
+    raise ValueError(
+        "DJANGO_SECRET_KEY environment variable is not set and secrets/.env file not found. \n"
+        "Generate a new key using: "
+        "python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())' \n"
+        "Then set it in your .env file under DJANGO_SECRET_KEY= or in your environment."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
