@@ -179,6 +179,18 @@ if not SECRET_KEY:
     secret_path = os.path.join(BASE_DIR, "secrets/.env")
     if os.path.exists(secret_path):
         try:
+            # Validate file permissions - should be readable only by owner (0600)
+            file_stat = os.stat(secret_path)
+            file_mode = file_stat.st_mode & 0o777
+            if file_mode != 0o600 and file_mode != 0o400:
+                import warnings
+                warnings.warn(
+                    f"⚠️  WARNING: secrets/.env has insecure permissions ({oct(file_mode)}). "
+                    f"Should be 0600 (rw-------) or 0400 (r--------). "
+                    f"Fix with: chmod 600 {secret_path}",
+                    SecurityWarning
+                )
+            
             config = Config(RepositoryEnv(secret_path))
             SECRET_KEY = config("DJANGO_SECRET_KEY")
         except Exception:
@@ -190,7 +202,8 @@ if not SECRET_KEY:
         "DJANGO_SECRET_KEY environment variable is not set and secrets/.env file not found. \n"
         "Generate a new key using: "
         "python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())' \n"
-        "Then set it in your .env file under DJANGO_SECRET_KEY= or in your environment."
+        "Then set it in your .env file under DJANGO_SECRET_KEY= or in your environment.\n"
+        "If using secrets/.env file, ensure it has permissions 0600 (rw-------) for security."
     )
 
 # SECURITY WARNING: don't run with debug turned on in production!
