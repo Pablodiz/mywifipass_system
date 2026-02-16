@@ -155,25 +155,70 @@ class WifiUser(models.Model):
 
     def sign_csr(self, csr_pem: str) -> tuple:
         """
-        Sign a CSR for the user
-
+        Sign a Certificate Signing Request (CSR) for the user.
+        
+        SECURITY: This is a critical operation. The CSR is validated to ensure:
+        - PEM format is correct
+        - Common Name (CN) matches the user's name
+        - CSR is not excessively large (DoS prevention)
+        
         Args:
-            csr_pem: The PEM encoded CSR to be signed
-
+            csr_pem (str): The PEM-encoded CSR to be signed
+            
         Returns:
-            Tuple containing (certificate_pem, ca_certificate_pem)
+            tuple: (certificate_pem, ca_certificate_pem)
+            
+        Raises:
+            ValueError: If CSR is invalid, CN doesn't match user, or required fields missing
         """
         if not self.wifiLocation:
             raise ValueError("WifiNetworkLocation is required to sign a CSR.")
+        
+        if not self.wifiLocation.certificates_CA:
+            raise ValueError("CA certificate not configured for this network.")
+        
+        # Validate CSR PEM format and size (prevent DoS)
+        if not isinstance(csr_pem, str):
+            raise ValueError("CSR must be a string")
+        
+        if len(csr_pem) > 10000:  # Reasonable upper bound for CSR size
+            raise ValueError("CSR is too large (max 10KB)")
+        
+        if not csr_pem.strip().startswith('-----BEGIN CERTIFICATE REQUEST-----'):
+            raise ValueError("CSR must be in valid PEM format")
+        
+        # Load and validate CSR
+        try:
+            csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr_pem)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid CSR format: {str(e)}")
+        
+        # Validate CSR signature
+        try:
+            # Verify the CSR is self-signed and not tampered with
+            csr.verify()
+        except Exception as e:
+            raise ValueError(f"CSR signature verification failed: {str(e)}")
+        
+        # Validate Common Name (CN) from CSR matches user identity
+        csr_subject = csr.get_subject()
+        csr_cn = csr_subject.commonName
+        
+        if not csr_cn:
+            raise ValueError("CSR must contain a Common Name (CN)")
+        
+        # CN should match the user's name for identity verification
+        if csr_cn != self.name:
+            raise ValueError(
+                f"CSR Common Name '{csr_cn}' does not match user name '{self.name}'. "
+                "CSR CN must match the user's registered name for security."
+            )
         
         if self.certificate:
             self.revoke_certificate()
 
         # Get the certificate's CA from the wifi location
         ca = self.wifiLocation.certificates_CA
-
-        # Load the CSR
-        csr = crypto.load_certificate_request(crypto.FILETYPE_PEM, csr_pem)
 
         # Create a new X509 certificate
         cert = crypto.X509()
