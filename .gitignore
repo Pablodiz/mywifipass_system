@@ -71,3 +71,8 @@ Pipfile
 
 
 docker-openwisp/
+.env 
+.gitignore
+dont_push/
+deploy_scripts/done
+*.csv
