@@ -2,12 +2,15 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
+import logging
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
+
+logger = logging.getLogger(__name__)
 from mywifipass.models import WifiUser, WifiNetworkLocation
 from mywifipass.utils import generate_qr_code
 import mywifipass.api.urls as urls 
@@ -181,7 +184,13 @@ class WifiUserViewSet(ModelViewSet):
         try:
             signed_cert, ca_cert = user.sign_csr(csr_pem)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Log validation error for debugging; return generic message to client
+            logger.warning(f"CSR validation failed for user {user.user_uuid}: {str(e)}")
+            return Response({'error': 'Invalid certificate request. Please check your CSR format and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log unexpected errors
+            logger.exception(f"Unexpected error signing CSR for user {user.user_uuid}")
+            return Response({'error': 'Certificate signing failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         user.deauthorize()
         return Response({

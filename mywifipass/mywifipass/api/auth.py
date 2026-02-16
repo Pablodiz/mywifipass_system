@@ -2,6 +2,7 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
+import logging
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.middleware.csrf import requires_csrf_token
@@ -11,6 +12,8 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from mywifipass.api.auth_model import User, LoginToken
 from mywifipass.api.throttles import LoginAttemptThrottle
+
+logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @throttle_classes([LoginAttemptThrottle])
@@ -52,5 +55,9 @@ def obtain_auth_token_username_token(request):
         except Http404:
             return Response({'error': f'Token {qr_token} not found for user {username}.'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        # Log full exception for debugging, but don't expose it to client
+        logger.exception(f"Unexpected error in obtain_auth_token_username_token: {type(e).__name__}")
+        return Response(
+            {'error': 'Authentication failed. Please try again.'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
