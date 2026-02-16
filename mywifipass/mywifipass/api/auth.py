@@ -4,6 +4,7 @@
 
 from django.shortcuts import get_object_or_404
 from django.http import Http404
+from django.middleware.csrf import requires_csrf_token
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,13 +14,21 @@ from mywifipass.api.auth_model import User, LoginToken
 @api_view(['POST'])
 def obtain_auth_token_username_token(request):
     """
-    Handles the HTTP request to obtain a HTTP authentication token from a username and token.
+    Obtains an authentication token using username and QR token.
+    
+    SECURITY: This endpoint accepts POST requests that contain authentication credentials
+    (username + token from QR code). It should only be called via TokenAuthentication
+    (stateless API calls) and not via SessionAuthentication (browser cookies).
+    
+    To prevent CSRF attacks, clients must:
+    1. Use the API token in Authorization header (preferred)
+    2. Include valid CSRF token if using session-based auth (not recommended for APIs)
     
     Args:
-        request: The HTTP request object.
+        request: HTTP request with POST data containing 'username' and 'token'
     
     Returns:
-        Response: A response containing the authentication token or an error message.
+        Response with DiagnosticInfo token or error
     """
     try:
         username = request.data.get('username')
