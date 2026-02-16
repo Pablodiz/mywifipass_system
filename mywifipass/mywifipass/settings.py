@@ -243,3 +243,7 @@ BASE_URL = f"{http_header}{DOMAIN}/"
 # Configure the usage of a reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 EMAIL_TIMEOUT = 5
+
+# Radius certificate export directories (configurable via environment)
+# Default: /dockerx509/mywifipass/server_certs (or set RADIUS_CERT_DIR env var)
+RADIUS_CERT_DIR = os.getenv('RADIUS_CERT_DIR', '/djangox509/mywifipass/server_certs')
