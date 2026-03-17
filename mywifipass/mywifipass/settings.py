@@ -15,7 +15,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 from pathlib import Path
 from decouple import Config, RepositoryEnv
-from django.core.management.utils import get_random_secret_key
 import os 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -75,10 +74,31 @@ TEMPLATES = [
 WSGI_APPLICATION = 'mywifipass.wsgi.application'
 
 
+# Django REST Framework configuration
+# Note: TokenAuthentication is exempt from CSRF protection for stateless APIs
+# SessionAuthentication is included for browser-based access and CSRF protection
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',  
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'mywifipass.api.throttles.LoginAttemptThrottle',
+        'mywifipass.api.throttles.CertificateSigningThrottle',
+        'mywifipass.api.throttles.AuthorizationThrottle',
+        'mywifipass.api.throttles.DownloadThrottle',
+        'mywifipass.api.throttles.ValidationThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'login_attempt': '5/minute',              # Login attempts per IP
+        'certificate_signing': '3/minute',         # CSR signing per user
+        'authorization': '10/minute',              # Admin authorization per user
+        'download': '20/minute',                   # Pass downloads per IP
+        'validation': '10/minute',                 # User validation checks per IP
+    }
 }
 
 # Database
@@ -165,23 +185,47 @@ USER_PATH = "user/"
 API_PATH = "api/"
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# If the secret key is defined we use it, if not we generate a new one and add it to the .env file
-secret_path = os.path.join(BASE_DIR, "secrets/.env")
-config = Config(RepositoryEnv(secret_path))
-try:
-    secret_key = config("DJANGO_SECRET_KEY")
-except:
-    secret = get_random_secret_key()
-    with open("/djangox509/mywifipass/secrets/.env", "w") as f:
-        f.write(f"\n{"DJANGO_SECRET_KEY"}='{secret}'")
-    secret_key = secret
+# Load from environment variable (preferred) or fail fast if not found
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
-SECRET_KEY = secret_key
+if not SECRET_KEY:
+    # Try to load from secrets file for backwards compatibility
+    secret_path = os.path.join(BASE_DIR, "secrets/.env")
+    if os.path.exists(secret_path):
+        try:
+            # Validate file permissions - should be readable only by owner (0600)
+            file_stat = os.stat(secret_path)
+            file_mode = file_stat.st_mode & 0o777
+            if file_mode != 0o600 and file_mode != 0o400:
+                import warnings
+                warnings.warn(
+                    f"⚠️  WARNING: secrets/.env has insecure permissions ({oct(file_mode)}). "
+                    f"Should be 0600 (rw-------) or 0400 (r--------). "
+                    f"Fix with: chmod 600 {secret_path}",
+                    SecurityWarning
+                )
+            
+            config = Config(RepositoryEnv(secret_path))
+            SECRET_KEY = config("DJANGO_SECRET_KEY")
+        except Exception:
+            pass
+
+# If still not found, raise an error
+if not SECRET_KEY:
+    raise ValueError(
+        "DJANGO_SECRET_KEY environment variable is not set and secrets/.env file not found. \n"
+        "Generate a new key using: "
+        "python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())' \n"
+        "Then set it in your .env file under DJANGO_SECRET_KEY= or in your environment.\n"
+        "If using secrets/.env file, ensure it has permissions 0600 (rw-------) for security."
+    )
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = ["0.0.0.0", "*"]
+# Allowed hosts - defaults to localhost, set ALLOWED_HOSTS env var to override
+# Example: ALLOWED_HOSTS=localhost,127.0.0.1,example.com
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost').split(',') if h.strip()]
 
 ssl = os.getenv('SSL', default='False').lower() in ('true', '1', 'yes')
 
@@ -199,3 +243,7 @@ BASE_URL = f"{http_header}{DOMAIN}/"
 # Configure the usage of a reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 EMAIL_TIMEOUT = 5
+
+# Radius certificate export directories (configurable via environment)
+# Default: /dockerx509/mywifipass/server_certs (or set RADIUS_CERT_DIR env var)
+RADIUS_CERT_DIR = os.getenv('RADIUS_CERT_DIR', '/djangox509/mywifipass/server_certs')

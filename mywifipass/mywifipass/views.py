@@ -60,6 +60,13 @@ def wifi_user_autoregistration(request, location_uuid):
     return render(request, "mywifipass/wifiuser/register.html", {"form": form, "location": network, "breadcrumbs": breadcrumbs})
 
 def admin_qr_view(request):
+    """
+    Generate a QR code for admin login (displayed in admin interface).
+    
+    SECURITY NOTE: This view is accessed from the browser admin interface.
+    CSRF protection is automatically applied by Django's CsrfViewMiddleware.
+    The QR code contains sensitive login tokens and should only be accessible to authenticated admins.
+    """
     LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()
     token = LoginToken.objects.create(
         user=request.user,

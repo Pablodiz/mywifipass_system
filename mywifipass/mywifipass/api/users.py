@@ -2,12 +2,15 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
+import logging
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
+
+logger = logging.getLogger(__name__)
 from mywifipass.models import WifiUser, WifiNetworkLocation
 from mywifipass.utils import generate_qr_code
 import mywifipass.api.urls as urls 
@@ -25,6 +28,14 @@ from cryptography import x509
 import base64
 
 from drf_yasg.utils import swagger_auto_schema
+
+# Rate limiting imports
+from mywifipass.api.throttles import (
+    CertificateSigningThrottle,
+    AuthorizationThrottle,
+    DownloadThrottle,
+    ValidationThrottle,
+)
 
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
@@ -151,7 +162,7 @@ class WifiUserViewSet(ModelViewSet):
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[CertificateSigningThrottle])
     def sign_certificate(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}sign_certificate/"""
@@ -173,7 +184,13 @@ class WifiUserViewSet(ModelViewSet):
         try:
             signed_cert, ca_cert = user.sign_csr(csr_pem)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Log validation error for debugging; return generic message to client
+            logger.warning(f"CSR validation failed for user {user.user_uuid}: {str(e)}")
+            return Response({'error': 'Invalid certificate request. Please check your CSR format and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log unexpected errors
+            logger.exception(f"Unexpected error signing CSR for user {user.user_uuid}")
+            return Response({'error': 'Certificate signing failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         user.deauthorize()
         return Response({
@@ -182,7 +199,7 @@ class WifiUserViewSet(ModelViewSet):
         }, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def download(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}download/"""
@@ -208,7 +225,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def qr(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
@@ -221,7 +238,7 @@ class WifiUserViewSet(ModelViewSet):
         return response
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser], throttle_classes=[ValidationThrottle])
     def validate(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}validate/"""
@@ -241,7 +258,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response(data)
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], throttle_classes=[AuthorizationThrottle])
     def authorize(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}authorize/"""
@@ -303,7 +320,7 @@ class WifiUserViewSet(ModelViewSet):
     #     return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[ValidationThrottle])
     def check_user_authorized(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}check_user_authorized/"""
@@ -318,7 +335,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response({'message': 'User is authorized to access the network.'})
 
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def downloaded(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}downloaded/"""
