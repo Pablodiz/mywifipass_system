@@ -44,10 +44,7 @@ The system is built using a containerized microservices architecture:
 
 3. **Deploy with Docker**:
    ```bash
-   chmod +x deploy.sh
-   ./deploy.sh
-   # Or alternatively:
-   # docker compose up -d
+   docker compose up -d
    ```
 
 ## Configuration
