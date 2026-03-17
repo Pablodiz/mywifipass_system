@@ -1,10 +1,12 @@
 # MyWifiPass System
 
-The comprehensive web application component of MyWifiPass for managing Wi-Fi clients and networks with EAP-TLS authentication.
+The comprehensive web application component of MyWifiPass for managing Wi-Fi clients and networks with EAP-TLS authentication. 
 
 ## Overview
 
-MyWifiPass System is the server-side component that provides a web-based management interface for implementing EAP-TLS authentication in enterprise wireless networks. It automates the complex processes of certificate management, RADIUS server configuration, and network deployment.
+MyWifiPass System is the server-side component that provides a web-based management interface for implementing EAP-TLS authentication in enterprise wireless networks. It automates the complex processes of certificate management, RADIUS server configuration, and network deployment. 
+
+The core certificate generation engine and database models originated as a simplified fork of the open-source library [django-x509](https://github.com/openwisp/django-x509). It has been extensively modified and adapted specifically for this project's requirements.
 
 ## Features
 
@@ -14,7 +16,6 @@ MyWifiPass System is the server-side component that provides a web-based managem
 - **Certificate Management**: Full PKI lifecycle including generation, distribution, and revocation
 - **Email Notifications**: Automated certificate delivery to users
 - **QR Code Generation**: Create QR codes for easy Android app configuration
-- **OpenWISP Integration**: Simplified setup and basic configuration of OpenWISP for access point management
 - **RESTful API**: Integration capabilities with third-party systems
 
 ## Architecture
@@ -41,10 +42,12 @@ The system is built using a containerized microservices architecture:
    # Edit .env with your configuration
    ```
 
-3. **Deploy with Docker**. Use `mywifipass` for deploying MyWifiPass system or `all` for including OpenWISP integrations:
+3. **Deploy with Docker**:
    ```bash
    chmod +x deploy.sh
-   ./deploy.sh {mywifipass|all}
+   ./deploy.sh
+   # Or alternatively:
+   # docker compose up -d
    ```
 
 ## Configuration
@@ -54,34 +57,13 @@ Edit the `.env` file to configure:
 - Email settings for certificate delivery
 - Domain and SSL settings
 - RADIUS server configuration
-- OpenWISP integration settings
 
 ## Wi-Fi Pass Generation
 
-The system generates "Wi-Fi passes", which let Wi-Fi clients download the credentials needed for connecting to the networks. They include:
+The system generates "Wi-Fi passes", which let Wi-Fi clients download the credentials needed for connecting to the networks. They include:                      
 - Network SSID
 - Metadata for contextualizing the network
 - URLs for obtaining the client certificates for EAP-TLS authentication and CA certificates for server validation
-
-## OpenWISP
-
-MyWifiPass includes optional integration with OpenWISP for access point management. When deployed with the `all` option, the system provides:
-
-- **Automated Setup**: Simplified deployment of OpenWISP controller and dashboard
-- **Basic Configuration**: Pre-configured template for EAP-TLS configuration
-- **Access Point Auto-Configuration**: Generates setup scripts for easy AP deployment
-
-The OpenWISP integration is designed to get you started quickly with access point management, though advanced OpenWISP features may require additional manual configuration.
-
-### Access Point Setup
-
-When deploying with the `all` option, MyWifiPass automatically generates a configuration script (`configure_openwisp.sh`) that simplifies access point integration:
-
-1. **Copy the script** to your target access point device
-2. **Execute the script** on the access point (requires internet connectivity)
-3. **Automatic configuration** of OpenWISP agent and network settings
-
-**Requirements**: Target access points must have internet access during the configuration process.
 
 ## Related Projects
 
@@ -94,4 +76,7 @@ Refer to [the user manual](./user_manual.md) for help managing the system.
 
 ## License
 
-This project is part of the MyWifiPass ecosystem designed to simplify enterprise wireless security deployment.
+This project is part of the MyWifiPass ecosystem designed to simplify enterprise wireless security deployment. It follows the **BSD 3-Clause License**, retaining the original copyright notices from the `django-x509` community (`Copyright (c) 2015, Federico Capoano / OpenWISP`), alongside the updated copyright for the MyWifiPass logic and infrastructure (`Copyright (c) 2025, Pablo Diz de la Cruz`).
+
+---
+*Note: In version 1.0, as part of the Degree Thesis, a small integration with OpenWISP was included. However, this has been removed and is no longer maintained in current versions to streamline the standalone architecture.*
