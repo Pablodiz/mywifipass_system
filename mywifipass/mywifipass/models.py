@@ -3,7 +3,7 @@
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
 from django.db import models
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, time
 from django_x509.base.models import AbstractCa, AbstractCert
 import uuid, secrets
 from django.db.models.signals import post_delete
@@ -436,11 +436,24 @@ class WifiNetworkLocation(models.Model):
 
     def create_ca_certificates(self):
         from mywifipass.api.urls import crl_url
+        
+        # Convert end_date to end of day (23:59:59) to allow access throughout the entire day
+        # This fixes the bug where events set to end on a certain date deny access on that same day
+        end_date_with_time = self.end_date
+        if self.end_date:
+            # Combine date with end-of-day time if it's just a date object
+            if isinstance(self.end_date, date) and not isinstance(self.end_date, datetime):
+                end_date_with_time = datetime.combine(self.end_date, time(23, 59, 59))
+            elif isinstance(self.end_date, datetime):
+                # If it's already a datetime but early in the day, move to end of day
+                if self.end_date.time() < time(12, 0, 0):
+                    end_date_with_time = self.end_date.replace(hour=23, minute=59, second=59)
+        
         ca = MyCustomCA(
             name=f"{self.name}'s CA",
             common_name=self.name,
             validity_start=self.start_date,
-            validity_end=self.end_date,
+            validity_end=end_date_with_time,
         )
         ca.crl_dp_url= crl_url(self)
 
