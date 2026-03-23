@@ -44,85 +44,101 @@ urlpatterns = [
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
    ]
 
-def base_url (user: WifiUser):
+def base_url (user: WifiUser, network: WifiNetworkLocation = None):
     """
-    Function to get the URL of the user
+    Function to get the URL of the user for a specific network
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional, defaults to first network if not provided)
     Returns:
-        url: URL of the user
+        url: URL of the user for the specified network
+    Raises:
+        ValueError: If network is None and user has no networks assigned
     """
-    return BASE_URL + API_PATH + f"networks/{str(user.wifiLocation.location_uuid)}/users/{str(user.user_uuid)}"
+    if network is None:
+        network = user.networks.first()
+    
+    if not network:
+        raise ValueError(f"User {user.user_uuid} has no networks assigned and no specific network provided")
+    
+    return BASE_URL + API_PATH + f"networks/{str(network.location_uuid)}/users/{str(user.user_uuid)}"
 
-def wifipass_download_url (user: WifiUser):
+def wifipass_download_url (user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL of the wifipass for an user
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL of the wifipass for an user
     """
-    return base_url(user) + "/download/"
+    return base_url(user, network) + "/download/"
 
-def user_qr_url (user: WifiUser):
+def user_qr_url (user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL of the user QR code
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL of the user QR code
     """
-    return base_url(user) + "/qr/"
+    return base_url(user, network) + "/qr/"
 
-def certificates_symmetric_key_url(user: WifiUser):
+def certificates_symmetric_key_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL of the symmetric key of the user
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL of the symmetric key of the user
     """
-    return base_url(user) + "/key/"
+    return base_url(user, network) + "/key/"
 
-def validation_url(user: WifiUser):
+def validation_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for checking that the user exists for an event
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL for checking that the user exists for an event
     """
-    return base_url(user) + "/validate/"
+    return base_url(user, network) + "/validate/"
 
-def authorize_url (user: WifiUser):
+def authorize_url (user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for checking that the user exists for an event
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL where to authorize the user
     """
-    return base_url(user) + "/authorize/"
+    return base_url(user, network) + "/authorize/"
 
-def has_downloaded_url(user: WifiUser):
+def has_downloaded_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for checking that the user has downloaded the pass
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL where to check if the user has downloaded the pass
     """
-    return base_url(user) + "/downloaded/"
+    return base_url(user, network) + "/downloaded/"
 
-def certificates_url(user: WifiUser):
+def certificates_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for generating and obtaining the user certificates
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL for generating and obtaining the user certificates
     """
-    return base_url(user) + "/certificates/"
+    return base_url(user, network) + "/certificates/"
 
 def crl_url(network: WifiNetworkLocation):
     """
@@ -134,32 +150,35 @@ def crl_url(network: WifiNetworkLocation):
     """
     return BASE_URL + API_PATH + f"networks/{str(network.location_uuid)}/crl/"
 
-def email_url(user: WifiUser):
+def email_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL that is sent to the user via email
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional, uses first network if not provided)
     Returns:
         url: URL sent in an email to the user
     """
-    return "https://pablodiz.github.io/mywifipass?url=" + wifipass_download_url(user)
+    return "https://pablodiz.github.io/mywifipass?url=" + wifipass_download_url(user, network)
 
-def check_user_authorized_url(user: WifiUser):
+def check_user_authorized_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for checking if the user is authorized
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL for checking if the user is authorized
     """
-    return base_url(user) + "/check_user_authorized/"
+    return base_url(user, network) + "/check_user_authorized/"
 
-def sign_certificate_url(user: WifiUser):
+def sign_certificate_url(user: WifiUser, network: WifiNetworkLocation = None):
     """
     Function to get the URL for signing the user's certificate
     Args:
         user: WifiUser for whom the url is requested
+        network: WifiNetworkLocation (optional)
     Returns:
         url: URL for signing the user's certificate
     """
-    return base_url(user) + "/sign_certificate/"
+    return base_url(user, network) + "/sign_certificate/"

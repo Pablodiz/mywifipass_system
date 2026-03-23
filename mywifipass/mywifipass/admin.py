@@ -28,12 +28,22 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "android_version", "send_email_button", "revoke_certificate_button", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "networks_display", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "networks", "email_sent", "email_sent_date"]
     list_filter = ["email_sent", "has_attended", "has_downloaded_pass"]
     list_editable = ["has_downloaded_pass", "has_attended"]
     readonly_fields = ["email_sent", "email_sent_date"]
+
+    def networks_display(self, obj: WifiUser):
+        """
+        Display networks as a comma-separated list in admin list view
+        """
+        networks = obj.networks.all()
+        if networks:
+            return ", ".join([network.name for network in networks])
+        return "—"
+    networks_display.short_description = "Networks"
 
     def has_change_permission(self, request, obj=None):
         if obj and obj.certificate and obj.certificate.revoked:
@@ -59,11 +69,17 @@ class WifiUserAdmin(ModelAdmin):
     send_email_button.short_description = "Email Actions"
     
     def show_qr_button(self, obj:WifiUser):
-        url = user_qr_url(obj)
-        return format_html(
-            '<a class="button" style="{}" href="{}">Show QR</a>',
-            button_style, url
-        )
+        try:
+            url = user_qr_url(obj)
+            return format_html(
+                '<a class="button" style="{}" href="{}">Show QR</a>',
+                button_style, url
+            )
+        except ValueError as e:
+            return format_html(
+                '<span class="button" style="{}" disabled title="{}">No Networks</span>',
+                button_style, str(e)
+            )
     
     def revoke_certificate_button(self, obj: WifiUser):
         if obj.certificate: 
