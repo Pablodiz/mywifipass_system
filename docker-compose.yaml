@@ -32,8 +32,11 @@ services:
       - EMAIL_USE_TLS
       - EMAIL_HOST_PORT
       - DOMAIN
+      - SERVER_IP
+      - ALLOWED_HOSTS
+      - CSRF_TRUSTED_ORIGINS
       - SSL 
-      - TIME_ZONE
+      - TZ
   radius:
     build: ./our_radius
     container_name: radius-server

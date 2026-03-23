@@ -5,7 +5,7 @@
 import logging
 from django.shortcuts import get_object_or_404
 from django.http import Http404
-from django.middleware.csrf import requires_csrf_token
+from django.views.decorators.csrf import requires_csrf_token
 from rest_framework.decorators import api_view, throttle_classes
 from rest_framework.response import Response
 from rest_framework import status

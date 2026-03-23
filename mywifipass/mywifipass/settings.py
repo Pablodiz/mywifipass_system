@@ -225,7 +225,27 @@ DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
 
 # Allowed hosts - defaults to localhost, set ALLOWED_HOSTS env var to override
 # Example: ALLOWED_HOSTS=localhost,127.0.0.1,example.com
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost').split(',') if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+
+# Dynamically add DOMAIN and SERVER_IP to ALLOWED_HOSTS to make deployment easier
+_domain_host = os.getenv('DOMAIN', '').split(':')[0]
+_server_ip = os.getenv('SERVER_IP', '')
+if _domain_host and _domain_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_domain_host)
+if _server_ip and _server_ip not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_server_ip)
+
+# Add Trusted Origins to ensure CSRF does not break when behind a reverse proxy
+CSRF_TRUSTED_ORIGINS = [
+    h for h in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if h.strip()
+]
+# Automatically trust our ALLOWED_HOSTS
+for ah in ALLOWED_HOSTS:
+    if ah != '*':
+        if f"http://{ah}" not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(f"http://{ah}")
+        if f"https://{ah}" not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(f"https://{ah}")
 
 ssl = os.getenv('SSL', default='False').lower() in ('true', '1', 'yes')
 
