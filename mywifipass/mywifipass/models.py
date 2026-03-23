@@ -133,7 +133,7 @@ class WifiUser(models.Model):
     has_downloaded_pass = models.BooleanField(default=False)
     email_sent = models.BooleanField(default=False, help_text="Indicates if registration email has been sent to the user")
     email_sent_date = models.DateTimeField(blank=True, null=True, help_text="Date when the last email was sent")
-    android_version = models.CharField(blank=True, null=True)
+    android_version = models.CharField(blank=True, null=True)  # DEPRECATED: kept for DB compatibility with migration 0008
     def is_authorized_for_network(self, network: 'WifiNetworkLocation') -> bool:
         """
         Check if user is authorized to access a specific network.

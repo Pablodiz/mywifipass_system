@@ -200,7 +200,7 @@ class SignCSRSerializer(serializers.Serializer):
     """For signing a CSR"""
     csr = serializers.CharField()
     token = serializers.CharField()
-    androidVersion = serializers.CharField()
+    # androidVersion = serializers.CharField()  # DEPRECATED: no longer tracked
 
 class WifiUserViewSet(ModelViewSet):
     """
@@ -282,7 +282,7 @@ class WifiUserViewSet(ModelViewSet):
 
         # Convert memoryview to bytes for comparison
         user_key = bytes(user.certificates_symmetric_key)
-        user.android_version = serializer.validated_data['androidVersion']
+        # user.android_version = serializer.validated_data['androidVersion']  # DEPRECATED: no longer tracked
 
         if token != user_key:
             return Response({'error': 'Invalid token'}, status=status.HTTP_403_FORBIDDEN)
