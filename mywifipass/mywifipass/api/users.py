@@ -40,20 +40,26 @@ from mywifipass.api.throttles import (
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a WifiUser.
+    Networks will be assigned via M2M relation.
     """
     class Meta:
         model = WifiUser
-        fields = ['name', 'email', 'id_document', 'wifiLocation']
+        fields = ['name', 'email', 'id_document']
 class WifiUserDetailSerializer(serializers.ModelSerializer):
-    """Complete details of the WifiUser """
-    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
-    ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
-    location = serializers.CharField(source='wifiLocation.location', read_only=True)
-    start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
-    end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
-    description = serializers.CharField(source='wifiLocation.description', read_only=True)
-    location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
-    location_uuid = serializers.UUIDField(source='wifiLocation.location_uuid', read_only=True)                   
+    """
+    Complete details of the WifiUser for a specific network.
+    Network is provided in serializer context.
+    """
+    network_common_name = serializers.SerializerMethodField()
+    ssid = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    location_name = serializers.SerializerMethodField()
+    location_uuid = serializers.SerializerMethodField()
+    is_user_authorized = serializers.SerializerMethodField()
+    
     class Meta:
         model = WifiUser
         fields = [
@@ -63,6 +69,50 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
             'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized'
         ]
         read_only_fields = ['user_uuid', 'allow_access_expiration']
+    
+    def get_network(self):
+        """Get the network from context"""
+        return self.context.get('network')
+    
+    def get_network_common_name(self, obj):
+        network = self.get_network()
+        if network and network.radius_Certificate:
+            return network.radius_Certificate.common_name
+        return None
+    
+    def get_ssid(self, obj):
+        network = self.get_network()
+        return network.SSID if network else None
+    
+    def get_location(self, obj):
+        network = self.get_network()
+        return network.location if network else None
+    
+    def get_start_date(self, obj):
+        network = self.get_network()
+        return network.start_date if network else None
+    
+    def get_end_date(self, obj):
+        network = self.get_network()
+        return network.end_date if network else None
+    
+    def get_description(self, obj):
+        network = self.get_network()
+        return network.description if network else None
+    
+    def get_location_name(self, obj):
+        network = self.get_network()
+        return network.name if network else None
+    
+    def get_location_uuid(self, obj):
+        network = self.get_network()
+        return network.location_uuid if network else None
+    
+    def get_is_user_authorized(self, obj):
+        network = self.get_network()
+        if network:
+            return obj.is_authorized_for_network(network)
+        return False
     
 class WifiUserListSerializer(serializers.ModelSerializer):
     """Serializer for listing WifiUsers with basic information."""
@@ -78,22 +128,60 @@ class WifiUserUpdateSerializer(serializers.ModelSerializer):
         fields = ['user_uuid', 'name', 'email', 'has_attended', 'has_downloaded_pass']
 
 class WifiUserWifiPassSerializer(serializers.ModelSerializer):
-    """Serializer for downloading the WifiUser pass."""
+    """
+    Serializer for downloading the WifiUser pass (WiFi credentials).
+    Network is provided in serializer context.
+    """
     email = serializers.EmailField(read_only=True)
-    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
-    ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
-    location = serializers.CharField(source='wifiLocation.location', read_only=True)
-    start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
-    end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
-    description = serializers.CharField(source='wifiLocation.description', read_only=True)
-    location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
+    network_common_name = serializers.SerializerMethodField()
+    ssid = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    location_name = serializers.SerializerMethodField()
     certificates_symmetric_key = serializers.SerializerMethodField()
+    
     class Meta:
         model = WifiUser
         fields = [
             'email', 'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
             'description', 'location_name', 'certificates_symmetric_key'
         ]
+
+    def get_network(self):
+        """Get the network from context"""
+        return self.context.get('network')
+    
+    def get_network_common_name(self, obj):
+        network = self.get_network()
+        if network and network.radius_Certificate:
+            return network.radius_Certificate.common_name
+        return None
+    
+    def get_ssid(self, obj):
+        network = self.get_network()
+        return network.SSID if network else None
+    
+    def get_location(self, obj):
+        network = self.get_network()
+        return network.location if network else None
+    
+    def get_start_date(self, obj):
+        network = self.get_network()
+        return network.start_date if network else None
+    
+    def get_end_date(self, obj):
+        network = self.get_network()
+        return network.end_date if network else None
+    
+    def get_description(self, obj):
+        network = self.get_network()
+        return network.description if network else None
+    
+    def get_location_name(self, obj):
+        network = self.get_network()
+        return network.name if network else None
 
     def get_certificates_symmetric_key(self, obj):
         """Return the symmetric key for the user's certificates."""
@@ -121,12 +209,25 @@ class WifiUserViewSet(ModelViewSet):
     lookup_field = 'user_uuid'
     swagger_tags = ['WiFi Users']  # Group users under "WiFi Users" in Swagger UI
 
-    def get_queryset(self):
-        """Filter users by network location UUID if provided or list all users""" 
+    def get_network(self):
+        """Retrieve the network from URL kwargs"""
         network_uuid = self.kwargs.get('network_location_uuid')
         if network_uuid:
-            return WifiUser.objects.filter(wifiLocation__location_uuid=network_uuid)
+            return get_object_or_404(WifiNetworkLocation, location_uuid=network_uuid)
+        return None
+
+    def get_queryset(self):
+        """Filter users by network location (via M2M) if provided or list all users""" 
+        network = self.get_network()
+        if network:
+            return WifiUser.objects.filter(networks=network)
         return WifiUser.objects.all()
+    
+    def get_serializer_context(self):
+        """Add network to serializer context"""
+        context = super().get_serializer_context()
+        context['network'] = self.get_network()
+        return context
     
     def get_serializer_class(self):
         """Select serializers"""
@@ -153,11 +254,11 @@ class WifiUserViewSet(ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
-        """Asign the network location to the user when creating"""
-        network_uuid = self.kwargs.get('network_location_uuid')
-        if network_uuid:
-            network = get_object_or_404(WifiNetworkLocation, location_uuid=network_uuid)
-            serializer.save(wifiLocation=network)
+        """Assign the network to the user (via M2M) when creating"""
+        network = self.get_network()
+        if network:
+            user = serializer.save()
+            user.networks.add(network)
         else:
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
@@ -167,6 +268,11 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}sign_certificate/"""
         user = self.get_object()
+        network = self.get_network()
+        
+        if not network:
+            return Response({'error': 'Network location UUID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = SignCSRSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         csr_pem = serializer.validated_data['csr']
@@ -182,7 +288,7 @@ class WifiUserViewSet(ModelViewSet):
             return Response({'error': 'Invalid token'}, status=status.HTTP_403_FORBIDDEN)
         
         try:
-            signed_cert, ca_cert = user.sign_csr(csr_pem)
+            signed_cert, ca_cert = user.sign_csr(csr_pem, network)
         except ValueError as e:
             # Log validation error for debugging; return generic message to client
             logger.warning(f"CSR validation failed for user {user.user_uuid}: {str(e)}")

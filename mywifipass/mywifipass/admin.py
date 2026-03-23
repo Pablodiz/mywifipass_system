@@ -28,10 +28,10 @@ class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "android_version", "send_email_button", "revoke_certificate_button", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "android_version", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
-    fields = ["name", "email","id_document", "wifiLocation", "email_sent", "email_sent_date"]
-    list_filter = ["wifiLocation", "email_sent", "has_attended", "has_downloaded_pass"]
+    fields = ["name", "email","id_document", "networks", "email_sent", "email_sent_date"]
+    list_filter = ["email_sent", "has_attended", "has_downloaded_pass"]
     list_editable = ["has_downloaded_pass", "has_attended"]
     readonly_fields = ["email_sent", "email_sent_date"]
 
@@ -107,15 +107,15 @@ class WifiUserAdmin(ModelAdmin):
 
                     for row in reader:
                         try:
-                            selected_wifi_location = form.cleaned_data['wifiLocation']
-                            wifi_location = WifiNetworkLocation.objects.get(pk=selected_wifi_location)
+                            selected_networks = form.cleaned_data['networks']
                             user = WifiUser(
                                 name=row['name'],
                                 email=row['email'],
                                 id_document=row['id_document'],
-                                wifiLocation=wifi_location
                             )
                             user.save()
+                            # Add the selected networks to the user
+                            user.networks.set(selected_networks)
                             success_count += 1
                         
                         except Exception as e:
