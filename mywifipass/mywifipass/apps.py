@@ -19,3 +19,9 @@ class MywifipassConfig(AppConfig):
         This ensures our security signals are registered.
         """
         import mywifipass.signals  # noqa: F401
+        from django.db.models.signals import m2m_changed
+        from mywifipass.models import WifiUser
+        from mywifipass.signals import send_email_on_networks_changed
+        
+        # Register the m2m_changed signal for WifiUser.networks field
+        m2m_changed.connect(send_email_on_networks_changed, sender=WifiUser.networks.through)

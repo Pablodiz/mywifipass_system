@@ -310,6 +310,8 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}download/"""
         user = self.get_object()
+        network = self.get_network()
+        
         if user.has_downloaded_pass:
             return Response(
                 {'error': 'User has already downloaded the pass'}, 
@@ -325,7 +327,7 @@ class WifiUserViewSet(ModelViewSet):
             'certificates_url': urls.sign_certificate_url(user),
             'has_downloaded_url': urls.has_downloaded_url(user),
             'check_user_authorized_url': urls.check_user_authorized_url(user),
-            'is_user_authorized': user.is_user_authorized
+            'is_user_authorized': user.is_authorized_for_network(network) if network else False
         })
         
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
@@ -431,8 +433,9 @@ class WifiUserViewSet(ModelViewSet):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}check_user_authorized/"""
         user = self.get_object()
+        network = self.get_network()
         
-        if not user.is_user_authorized:
+        if not network or not user.is_authorized_for_network(network):
             return Response(
                 {'error': 'User is not allowed to access'}, 
                 status=status.HTTP_403_FORBIDDEN

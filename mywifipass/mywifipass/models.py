@@ -213,7 +213,8 @@ class WifiUser(models.Model):
         # Validate CSR signature
         try:
             # Verify the CSR is self-signed and not tampered with
-            csr.verify()
+            # verify() requires the public key from the CSR to check its signature
+            csr.verify(csr.get_pubkey())
         except Exception as e:
             raise ValueError(f"CSR signature verification failed: {str(e)}")
         
@@ -224,11 +225,12 @@ class WifiUser(models.Model):
         if not csr_cn:
             raise ValueError("CSR must contain a Common Name (CN)")
         
-        # CN should match the user's name for identity verification
-        if csr_cn != self.name:
+        # CN should match either the user's name OR email for identity verification
+        # This maintains backward compatibility with apps that use email as CN
+        if csr_cn != self.name and csr_cn != self.email:
             raise ValueError(
-                f"CSR Common Name '{csr_cn}' does not match user name '{self.name}'. "
-                "CSR CN must match the user's registered name for security."
+                f"CSR Common Name '{csr_cn}' does not match user name '{self.name}' or email '{self.email}'. "
+                "CSR CN must match either the user's registered name or email for security."
             )
         
         if self.certificate:
@@ -373,7 +375,9 @@ class WifiUser(models.Model):
         if (send_email and self.networks.exists() and 
             self.networks.filter(send_emails_automatically=True).exists() and 
             hasattr(self, 'email_sent') and not self.email_sent):
-            send_mail(self, update=update)
+            # Send email for each network that has auto-send enabled
+            for network in self.networks.filter(send_emails_automatically=True):
+                send_mail(self, update=update, network=network)
             self.email_sent = True
             self.email_sent_date = timezone.now()
             super().save(update_fields=['email_sent', 'email_sent_date'])
@@ -384,11 +388,17 @@ class WifiUser(models.Model):
         from mywifipass.utils import send_mail
         try:
             if hasattr(self, 'email_sent'):
-                send_mail(self, update=False)
-                self.email_sent = True
-                self.email_sent_date = timezone.now()
-                self.save(update_fields=['email_sent', 'email_sent_date'], send_email=False)
-                return True, "Email sent successfully"
+                # Send email for each network the user is assigned to #TODO think about this, maybe we should only send one email for the first network or something like that, 
+                # to avoid spamming users with multiple emails if they are assigned to multiple networks
+                if self.networks.exists():
+                    for network in self.networks.all():
+                        send_mail(self, update=False, network=network)
+                    self.email_sent = True
+                    self.email_sent_date = timezone.now()
+                    self.save(update_fields=['email_sent', 'email_sent_date'], send_email=False)
+                    return True, "Emails sent successfully"
+                else:
+                    return False, "User is not assigned to any networks"
             else:
                 return False, "Email functionality not available for this user"
         except Exception as e:

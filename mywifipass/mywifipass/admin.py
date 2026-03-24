@@ -2,7 +2,7 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
-from django.contrib.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin, SimpleListFilter
 from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
@@ -24,6 +24,29 @@ from mywifipass.api.urls import user_qr_url
 
 button_style = "display: inline-block; text-align: center; width: 120px; padding: 8px 12px; box-sizing: border-box;"
 
+
+class NetworkFilter(SimpleListFilter):
+    """
+    Custom filter to filter WifiUsers by their associated networks
+    """
+    title = "Network"
+    parameter_name = "network"
+
+    def lookups(self, request, model_admin):
+        """
+        Returns a list of tuples (value, label) for each network
+        """
+        networks = WifiNetworkLocation.objects.all().order_by('name')
+        return [(network.location_uuid, network.name) for network in networks]
+
+    def queryset(self, request, queryset):
+        """
+        Filter the queryset based on the selected network
+        """
+        if self.value():
+            return queryset.filter(networks__location_uuid=self.value())
+        return queryset
+
 class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
@@ -31,7 +54,7 @@ class WifiUserAdmin(ModelAdmin):
     list_display = ["name", "email", "id_document", "networks_display", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
     fields = ["name", "email","id_document", "networks", "email_sent", "email_sent_date"]
-    list_filter = ["email_sent", "has_attended", "has_downloaded_pass"]
+    list_filter = ["email_sent", "has_attended", "has_downloaded_pass", NetworkFilter]
     list_editable = ["has_downloaded_pass", "has_attended"]
     readonly_fields = ["email_sent", "email_sent_date"]
 
