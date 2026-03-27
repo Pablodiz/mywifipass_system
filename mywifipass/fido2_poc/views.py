@@ -5,7 +5,7 @@
 import json
 import logging
 import os
-from base64 import b64encode, b64decode
+import base64
 from datetime import timedelta
 
 from django.http import JsonResponse
@@ -13,39 +13,53 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
 from django.utils import timezone
-from django.conf import settings
 
-from fido2.server import Fido2Server
-from fido2.webauthn import PublicKeyCredentialRpEntity
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+)
+from webauthn.helpers.structs import (
+    AttestationConveyancePreference,
+    AuthenticatorAttachment,
+    AuthenticatorSelectionCriteria,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from mywifipass.models import WifiUser
 from .models import PasskeyCredential
 
 logger = logging.getLogger(__name__)
 
-# FIDO2 Configuration - loaded from environment (same as settings.py)
-# RP_ID: Relying Party Identifier (domain without scheme or port)
-# Example: 'mywifipass.com' from DOMAIN='mywifipass.com' or 'mywifipass.com:8000'
+# FIDO2 Configuration - loaded from environment
 _domain = os.getenv('DOMAIN', 'localhost:8000')
-RP_ID = _domain.split(':')[0]  # Remove port if present
+RP_ID = _domain.split(':')[0]
 RP_NAME = 'MyWifiPass'
-
-# ORIGIN: Full URL origin for WebAuthn verification
-# Example: 'https://mywifipass.com' or 'http://localhost:8000'
 ssl = os.getenv('SSL', 'False').lower() in ('true', '1', 'yes')
 http_header = 'https://' if ssl else 'http://'
 ORIGIN = f'{http_header}{_domain}'
 
-# Initialize FIDO2 server
-rp = PublicKeyCredentialRpEntity(RP_ID, RP_NAME)
-server = Fido2Server(rp)
+
+def bytes_to_base64url(data: bytes) -> str:
+    """Convert bytes to base64url format (no padding)"""
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
+
+
+def base64url_to_bytes(data: str) -> bytes:
+    """Convert base64url string to bytes"""
+    padding = 4 - (len(data) % 4)
+    if padding != 4:
+        data += '=' * padding
+    return base64.urlsafe_b64decode(data)
 
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def register_start(request):
     """
-    Phase 3a: Begin FIDO2 registration - return challenge.
+    Phase 3a: Begin FIDO2 registration challenge.
     
     Request: POST /fido2/register/start/
     Body: { "email": "user@example.com" }
@@ -59,40 +73,49 @@ def register_start(request):
         if not user_email:
             return JsonResponse({'error': 'Email required'}, status=400)
         
-        # Get user
         try:
             wifi_user = WifiUser.objects.get(email=user_email)
         except WifiUser.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
         
-        # Check if user already has an active passkey
+        # Check existing passkey
         if hasattr(wifi_user, 'passkey_credential') and wifi_user.passkey_credential.is_active:
             return JsonResponse({
                 'error': 'User already has an active passkey',
                 'registered_at': wifi_user.passkey_credential.created_at.isoformat()
             }, status=400)
         
-        # Generate registration challenge
-        registration_data, state = server.register_begin(
-            {
-                'id': user_email.encode('utf-8'),
-                'name': user_email,
-                'display_name': wifi_user.name or user_email
-            }
+        # Generate registration options
+        options = generate_registration_options(
+            rp_id=RP_ID,
+            rp_name=RP_NAME,
+            user_id=user_email.encode('utf-8'),
+            user_name=user_email,
+            attestation=AttestationConveyancePreference.NONE,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+                resident_key=ResidentKeyRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.PREFERRED,
+            ),
         )
         
-        # Store state in cache (5 min timeout)
-        cache.set(f"fido2_reg_state_{user_email}", state, timeout=300)
-        
+        # Cache challenge
+        cache.set(f"fido2_reg_state_{user_email}", options.challenge, timeout=300)
         logger.info(f"Registration started for {user_email}")
         
         return JsonResponse({
-            'challenge': b64encode(registration_data['publicKey']['challenge']).decode('utf-8'),
-            'rp': registration_data['publicKey']['rp'],
-            'user': registration_data['publicKey']['user'],
-            'pubKeyCredParams': registration_data['publicKey']['pubKeyCredParams'],
-            'timeout': registration_data['publicKey']['timeout'],
-            'attestation': registration_data['publicKey'].get('attestation', 'none'),
+            'challenge': bytes_to_base64url(options.challenge),
+            'rp': {'name': options.rp.name, 'id': options.rp.id},
+            'user': {
+                'id': bytes_to_base64url(options.user.id),
+                'name': options.user.name,
+                'displayName': options.user.display_name,
+            },
+            'pubKeyCredParams': [
+                {'type': p.type, 'alg': p.alg.value} for p in options.pub_key_cred_params
+            ],
+            'timeout': options.timeout,
+            'attestation': options.attestation,
         })
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
@@ -105,24 +128,23 @@ def register_start(request):
 @require_http_methods(["POST"])
 def register_finish(request):
     """
-    Phase 3b: Complete FIDO2 registration - store credential.
+    Phase 3b: Complete FIDO2 registration, store credential.
     
     Request: POST /fido2/register/finish/
-    Body: { "email": "user@example.com", "credential_json": {...} }
+    Body: { "email": "user@example.com", "credential": {...} }
     
     Response: { "success": true, "message": "Passkey registered" }
     """
     try:
         data = json.loads(request.body)
         user_email = data.get('email', '').strip()
-        credential_json = data.get('credential_json')
+        credential = data.get('credential')
         
-        if not user_email or not credential_json:
+        if not user_email or not credential:
             return JsonResponse({'error': 'Email and credential required'}, status=400)
         
-        # Retrieve cached state
-        state = cache.get(f"fido2_reg_state_{user_email}")
-        if not state:
+        expected_challenge = cache.get(f"fido2_reg_state_{user_email}")
+        if not expected_challenge:
             return JsonResponse({'error': 'Registration session expired'}, status=400)
         
         try:
@@ -131,35 +153,32 @@ def register_finish(request):
             return JsonResponse({'error': 'User not found'}, status=404)
         
         try:
-            # Decode credential response
-            attestation_object = b64decode(credential_json['response']['attestationObject'])
-            client_data_json = b64decode(credential_json['response']['clientDataJSON'])
+            # Verify registration
+            verified_credential = verify_registration_response(
+                credential=credential,
+                expected_challenge=expected_challenge,
+                expected_rp_id=RP_ID,
+                expected_origin=ORIGIN,
+            )
             
-            # Complete registration (verify attestation)
-            auth_data = server.register_complete(state, attestation_object, client_data_json)
+            # Save credential
+            credential_id = bytes_to_base64url(verified_credential.credential_id)
             
-            # Store credential
-            credential_id = b64encode(auth_data.credential_data.credential_id).decode('utf-8')
-            
-            # Check if credential already exists
-            existing = PasskeyCredential.objects.filter(credential_id=credential_id).first()
-            if existing:
+            if PasskeyCredential.objects.filter(credential_id=credential_id).exists():
                 return JsonResponse({'error': 'Credential already registered'}, status=400)
             
             PasskeyCredential.objects.create(
                 wifi_user=wifi_user,
                 credential_id=credential_id,
                 public_key=json.dumps({
-                    'x': b64encode(auth_data.credential_data.credential_public_key.x).decode('utf-8'),
-                    'y': b64encode(auth_data.credential_data.credential_public_key.y).decode('utf-8'),
+                    'x': bytes_to_base64url(verified_credential.credential_public_key.x),
+                    'y': bytes_to_base64url(verified_credential.credential_public_key.y),
                 }),
-                sign_count=auth_data.sign_count,
-                attestation_format=auth_data.fmt,
+                sign_count=verified_credential.sign_count,
+                attestation_format=verified_credential.attestation_type,
             )
             
-            # Clean up cache
             cache.delete(f"fido2_reg_state_{user_email}")
-            
             logger.info(f"Registration completed for {user_email}")
             
             return JsonResponse({
@@ -180,7 +199,7 @@ def register_finish(request):
 @require_http_methods(["POST"])
 def authenticate_start(request):
     """
-    Phase 3c: Begin FIDO2 authentication - return challenge.
+    Phase 3c: Begin FIDO2 authentication challenge.
     
     Request: POST /fido2/authenticate/start/
     Body: { "email": "user@example.com" }
@@ -194,7 +213,6 @@ def authenticate_start(request):
         if not user_email:
             return JsonResponse({'error': 'Email required'}, status=400)
         
-        # Get user and credential
         try:
             wifi_user = WifiUser.objects.get(email=user_email)
             credential_obj = PasskeyCredential.objects.get(
@@ -207,20 +225,33 @@ def authenticate_start(request):
             return JsonResponse({'error': 'No passkey registered for this user'}, status=404)
         
         try:
-            # Generate authentication challenge
-            authentication_data, state = server.authenticate_begin(
-                [{'id': b64decode(credential_obj.credential_id), 'type': 'public-key'}]
+            # Generate authentication options
+            options = generate_authentication_options(
+                rp_id=RP_ID,
+                user_verification=UserVerificationRequirement.REQUIRED,
+                allow_credentials=[
+                    {
+                        'type': 'public-key',
+                        'id': base64url_to_bytes(credential_obj.credential_id),
+                    }
+                ],
             )
             
-            # Store state in cache (5 min timeout)
-            cache.set(f"fido2_auth_state_{user_email}", state, timeout=300)
-            
+            cache.set(f"fido2_auth_state_{user_email}", options.challenge, timeout=300)
             logger.info(f"Authentication started for {user_email}")
             
             return JsonResponse({
-                'challenge': b64encode(authentication_data['publicKey']['challenge']).decode('utf-8'),
-                'timeout': authentication_data['publicKey']['timeout'],
-                'allowCredentials': authentication_data['publicKey'].get('allowCredentials', []),
+                'challenge': bytes_to_base64url(options.challenge),
+                'timeout': options.timeout,
+                'rpId': options.rp_id,
+                'userVerification': options.user_verification,
+                'allowCredentials': [
+                    {
+                        'type': cred['type'],
+                        'id': bytes_to_base64url(cred['id']),
+                    }
+                    for cred in options.allow_credentials
+                ],
             })
         except Exception as e:
             logger.error(f"Authentication setup error: {str(e)}")
@@ -236,13 +267,12 @@ def authenticate_start(request):
 @require_http_methods(["POST"])
 def authenticate_finish(request):
     """
-    Phase 3d: Complete FIDO2 authentication - ACTS AS ADMIN VALIDATOR.
+    Phase 3d: Complete FIDO2 authentication - Acts as Admin Validator.
     
-    CRITICAL: Sets allow_access_expiration = now + 3 minutes
-    This acts like the user just was validated by Admin, opening CSR signing window.
+    CRITICAL: Sets allow_access_expiration = now + 3 minutes (opens CSR window)
     
     Request: POST /fido2/authenticate/finish/
-    Body: { "email": "user@example.com", "assertion_json": {...} }
+    Body: { "email": "user@example.com", "credential": {...} }
     
     Response: {
         "success": true,
@@ -253,14 +283,13 @@ def authenticate_finish(request):
     try:
         data = json.loads(request.body)
         user_email = data.get('email', '').strip()
-        assertion_json = data.get('assertion_json')
+        credential = data.get('credential')
         
-        if not user_email or not assertion_json:
-            return JsonResponse({'error': 'Email and assertion required'}, status=400)
+        if not user_email or not credential:
+            return JsonResponse({'error': 'Email and credential required'}, status=400)
         
-        # Retrieve cached state
-        state = cache.get(f"fido2_auth_state_{user_email}")
-        if not state:
+        expected_challenge = cache.get(f"fido2_auth_state_{user_email}")
+        if not expected_challenge:
             return JsonResponse({'error': 'Authentication session expired'}, status=400)
         
         try:
@@ -275,35 +304,31 @@ def authenticate_finish(request):
             return JsonResponse({'error': 'No passkey registered'}, status=404)
         
         try:
-            # Decode assertion response
-            authenticator_data = b64decode(assertion_json['response']['authenticatorData'])
-            client_data_json = b64decode(assertion_json['response']['clientDataJSON'])
-            signature = b64decode(assertion_json['response']['signature'])
-            
-            # Complete authentication (verify signature)
-            auth_data = server.authenticate_complete(
-                state,
-                [{'id': b64decode(credential_obj.credential_id), 'type': 'public-key'}],
-                authenticator_data,
-                client_data_json,
-                signature
+            # Verify authentication
+            verified_auth = verify_authentication_response(
+                credential=credential,
+                expected_challenge=expected_challenge,
+                expected_rp_id=RP_ID,
+                expected_origin=ORIGIN,
+                credential_public_key=base64url_to_bytes(
+                    json.loads(credential_obj.public_key).get('x', '')
+                ),
+                credential_id=base64url_to_bytes(credential_obj.credential_id),
+                sign_count=credential_obj.sign_count,
             )
             
-            # ⭐⭐⭐ THE KEY PART: Act as Admin Validator ⭐⭐⭐
-            # Open 3-minute CSR signing window
+            # KEY PART: Open 3-minute CSR window (act as Admin Validator)
             expiration_time = timezone.now() + timedelta(minutes=3)
             wifi_user.allow_access_expiration = expiration_time
             wifi_user.save()
             
-            # Update credential metadata
+            # Update credential
             credential_obj.last_used = timezone.now()
-            credential_obj.sign_count = auth_data.sign_count
+            credential_obj.sign_count = verified_auth.new_sign_count
             credential_obj.save()
             
-            # Clean up cache
             cache.delete(f"fido2_auth_state_{user_email}")
-            
-            logger.info(f"Authentication successful for {user_email} - CSR window opened until {expiration_time}")
+            logger.info(f"Authentication successful for {user_email} - CSR window opened")
             
             return JsonResponse({
                 'success': True,
