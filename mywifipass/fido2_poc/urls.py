@@ -11,9 +11,9 @@ app_name = 'fido2'
 FIDO2 Passkey Authentication Endpoints
 
 Phase 1: URL routing structure ready
-Phase 3+: Endpoints will be implemented in views.py
+Phase 3: All endpoints implemented
 
-Endpoints to implement:
+Endpoints:
 - POST /fido2/register/start/ - Begin registration challenge
 - POST /fido2/register/finish/ - Complete registration
 - POST /fido2/authenticate/start/ - Begin authentication challenge
@@ -21,5 +21,11 @@ Endpoints to implement:
 """
 
 urlpatterns = [
-    # To be added in Phase 3
+    # Registration endpoints
+    path('register/start/', views.register_start, name='register_start'),
+    path('register/finish/', views.register_finish, name='register_finish'),
+    
+    # Authentication endpoints (acts as Admin Validator)
+    path('authenticate/start/', views.authenticate_start, name='authenticate_start'),
+    path('authenticate/finish/', views.authenticate_finish, name='authenticate_finish'),
 ]

@@ -11,6 +11,8 @@ qrcode==8.2
 pillow==11.2.1
 ## Encryption
 pycryptodome==3.22.0
+## FIDO2 WebAuthn
+fido2==1.1.3
 ## .env file usage
 python-decouple==3.8
 # Database
