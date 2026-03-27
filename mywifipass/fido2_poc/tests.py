@@ -156,14 +156,26 @@ class FIDO2EndpointTestCase(TestCase):
         self.assertEqual(response.json()['error'], 'Email required')
     
     def test_register_start_user_not_found(self):
-        """Test: register/start with non-existent user returns 404."""
+        """Test: register/start with non-existent user creates user and returns 200."""
+        new_email = 'newuser@example.com'
+        # Verify user doesn't exist
+        self.assertFalse(WifiUser.objects.filter(email=new_email).exists())
+        
         response = self.client.post(
             reverse('fido2:register_start'),
-            data=json.dumps({'email': 'nonexistent@example.com'}),
+            data=json.dumps({'email': new_email}),
             content_type='application/json'
         )
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json()['error'], 'User not found')
+        
+        # Should succeed (200) and create user
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(WifiUser.objects.filter(email=new_email).exists())
+        
+        # Verify response has challenge
+        data = response.json()
+        self.assertIn('challenge', data)
+        self.assertIn('rp', data)
+        self.assertIn('user', data)
     
     def test_register_start_existing_passkey(self):
         """Test: register/start with existing passkey returns 400."""
@@ -361,3 +373,21 @@ class FIDO2EndpointTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['error'], 'Invalid JSON')
+
+
+class FIDOPageTestCase(TestCase):
+    """Test suite for HTML pages serving registration/authentication UI"""
+
+    def test_register_page_renders(self):
+        """Test: /fido2/register/ returns register.html template"""
+        response = self.client.get(reverse('fido2:register_page'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Register with Passkey', response.content.decode())
+        self.assertIn('registerBtn', response.content.decode())
+
+    def test_authenticate_page_renders(self):
+        """Test: /fido2/authenticate/ returns authenticate.html template"""
+        response = self.client.get(reverse('fido2:authenticate_page'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Authenticate with Passkey', response.content.decode())
+        self.assertIn('authenticateBtn', response.content.decode())

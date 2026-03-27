@@ -10,22 +10,23 @@ app_name = 'fido2'
 """
 FIDO2 Passkey Authentication Endpoints
 
-Phase 1: URL routing structure ready
-Phase 3: All endpoints implemented
-
 Endpoints:
+- GET  /fido2/register/     - Registration page (HTML)
 - POST /fido2/register/start/ - Begin registration challenge
 - POST /fido2/register/finish/ - Complete registration
+- GET  /fido2/authenticate/ - Authentication page (HTML)
 - POST /fido2/authenticate/start/ - Begin authentication challenge
 - POST /fido2/authenticate/finish/ - Complete authentication (sets 3-min CSR window)
 """
 
 urlpatterns = [
-    # Registration endpoints
+    # Registration pages and endpoints
+    path('register/', views.register_page, name='register_page'),
     path('register/start/', views.register_start, name='register_start'),
     path('register/finish/', views.register_finish, name='register_finish'),
     
-    # Authentication endpoints (acts as Admin Validator)
+    # Authentication pages and endpoints (acts as Admin Validator)
+    path('authenticate/', views.authenticate_page, name='authenticate_page'),
     path('authenticate/start/', views.authenticate_start, name='authenticate_start'),
     path('authenticate/finish/', views.authenticate_finish, name='authenticate_finish'),
 ]
