@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg',
     'mywifipass',
+    'fido2_poc',  # FIDO2 Passkey Integration (sidecar app)
 ]
 
 MIDDLEWARE = [
