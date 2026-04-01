@@ -59,6 +59,7 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
     location_name = serializers.SerializerMethodField()
     location_uuid = serializers.SerializerMethodField()
     is_user_authorized = serializers.SerializerMethodField()
+    requires_fido2_validation = serializers.SerializerMethodField()
     
     class Meta:
         model = WifiUser
@@ -66,7 +67,7 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
             'user_uuid', 'name', 'email', 'id_document', 
             'has_attended', 'has_downloaded_pass', 'allow_access_expiration',
             'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
-            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized'
+            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized', 'requires_fido2_validation'
         ]
         read_only_fields = ['user_uuid', 'allow_access_expiration']
     
@@ -113,7 +114,17 @@ class WifiUserDetailSerializer(serializers.ModelSerializer):
         if network:
             return obj.is_authorized_for_network(network)
         return False
-    
+        
+    def get_requires_fido2_validation(self, obj):
+        """Check if the network associated with this user requires FIDO2 validation."""
+        network = self.get_network()
+        if network:
+            try:
+                return network.fido2_config.requires_fido2
+            except (AttributeError, Exception):
+                pass
+        return False
+
 class WifiUserListSerializer(serializers.ModelSerializer):
     """Serializer for listing WifiUsers with basic information."""
     class Meta:
@@ -141,12 +152,17 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
     description = serializers.SerializerMethodField()
     location_name = serializers.SerializerMethodField()
     certificates_symmetric_key = serializers.SerializerMethodField()
+    requires_fido2_validation = serializers.SerializerMethodField()
+    fido2_authenticate_start_url = serializers.SerializerMethodField()
+    fido2_authenticate_finish_url = serializers.SerializerMethodField()
+    fido2_rp_id = serializers.SerializerMethodField()
     
     class Meta:
         model = WifiUser
         fields = [
             'email', 'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
-            'description', 'location_name', 'certificates_symmetric_key'
+            'description', 'location_name', 'certificates_symmetric_key', 'requires_fido2_validation',
+            'fido2_authenticate_start_url', 'fido2_authenticate_finish_url', 'fido2_rp_id'
         ]
 
     def get_network(self):
@@ -188,6 +204,34 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
         if obj.certificates_symmetric_key:
             return obj.certificates_symmetric_key.hex()
         return None
+
+    def get_requires_fido2_validation(self, obj):
+        """Check if the network requires FIDO2 validation for this WiFi pass."""
+        network = self.get_network()
+        if network:
+            try:
+                return network.fido2_config.requires_fido2
+            except (AttributeError, Exception):
+                pass
+        return False
+
+    def get_fido2_authenticate_start_url(self, obj):
+        """Return the complete URL for FIDO2 authentication start endpoint."""
+        from mywifipass.settings import BASE_URL
+        return BASE_URL + "fido2/authenticate/start/"
+
+    def get_fido2_authenticate_finish_url(self, obj):
+        """Return the complete URL for FIDO2 authentication finish endpoint."""
+        from mywifipass.settings import BASE_URL
+        return BASE_URL + "fido2/authenticate/finish/"
+
+    def get_fido2_rp_id(self, obj):
+        """Return the RP ID (Relying Party ID) for FIDO2 authentication."""
+        import os
+        domain = os.getenv('DOMAIN', 'localhost:8000')
+        # Extract domain without port (e.g., 'instance.mywifipass.com' from 'instance.mywifipass.com:8000')
+        rp_id = domain.split(':')[0]
+        return rp_id
 
 
 class CheckUserSerializer(serializers.Serializer):
