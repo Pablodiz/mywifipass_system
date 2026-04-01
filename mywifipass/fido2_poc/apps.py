@@ -13,3 +13,7 @@ class Fido2PocConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'fido2_poc'
     verbose_name = 'FIDO2 Passkey Authentication'
+    
+    def ready(self):
+        """Register signal handlers when the app is ready."""
+        import fido2_poc.signals  # noqa: F401

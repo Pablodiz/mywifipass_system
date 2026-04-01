@@ -8,7 +8,7 @@ import os
 import base64
 from datetime import timedelta
 
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
@@ -30,19 +30,10 @@ from webauthn.helpers.structs import (
 )
 
 from mywifipass.models import WifiUser
-from .models import PasskeyCredential
+from .models import PasskeyCredential, AuthenticationChallenge
+from .config import RP_ID, RP_NAME, ORIGIN, EXPECTED_ORIGINS
 
 logger = logging.getLogger(__name__)
-
-# FIDO2 Configuration - loaded from environment
-_domain = os.getenv('DOMAIN', 'localhost:8000')
-RP_ID = _domain.split(':')[0]
-RP_NAME = 'MyWifiPass'
-ssl = os.getenv('SSL', 'True').lower() in ('true', '1', 'yes') # Default to True for prod
-http_header = 'https://' if ssl else 'http://'
-ORIGIN = f'{http_header}{_domain}'
-# Allow both http and https dynamically if needed, but strict to ORIGIN by default
-EXPECTED_ORIGINS = [f"https://{_domain}", f"http://{_domain}"]
 
 
 def bytes_to_base64url(data: bytes) -> str:
@@ -102,18 +93,21 @@ def register_start(request):
             user_id=str(wifi_user.user_uuid).encode('utf-8'),  # Use UUID instead of email
             user_name=sanitized_username,  # Replace @ with . for WebAuthn compliance
             attestation=AttestationConveyancePreference.NONE,
+            
             authenticator_selection=AuthenticatorSelectionCriteria(
-                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-                resident_key=ResidentKeyRequirement.PREFERRED,
-                user_verification=UserVerificationRequirement.PREFERRED,
+                resident_key=ResidentKeyRequirement.REQUIRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
             ),
         )
+        
+        logger.info(f"FIDO2 REGISTER_START - RP_ID={RP_ID}, user_email={user_email}")
         
         # Store challenge in user session directly (supports gunicorn multi-worker without locmem issues)
         request.session[f"fido2_reg_state_{user_email}"] = bytes_to_base64url(options.challenge)
         logger.info(f"Registration started for {user_email}")
         
-        return JsonResponse({
+        # Build response with all WebAuthn options including authenticatorSelection
+        response_data = {
             'challenge': bytes_to_base64url(options.challenge),
             'rp': {'name': options.rp.name, 'id': options.rp.id},
             'user': {
@@ -126,7 +120,17 @@ def register_start(request):
             ],
             'timeout': options.timeout,
             'attestation': options.attestation,
-        })
+            'authenticatorSelection': {
+                'authenticatorAttachment': options.authenticator_selection.authenticator_attachment.value if options.authenticator_selection.authenticator_attachment else None,
+                'residentKey': options.authenticator_selection.resident_key.value if options.authenticator_selection.resident_key else 'preferred',
+                'userVerification': options.authenticator_selection.user_verification.value if options.authenticator_selection.user_verification else 'preferred',
+            }
+        }
+        
+        # Log the full response for debugging
+        logger.info(f"FIDO2 REGISTER_START response: {response_data}")
+        
+        return JsonResponse(response_data)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
@@ -270,22 +274,40 @@ def authenticate_start(request):
                 ],
             )
             
-            request.session[f"fido2_auth_state_{user_email}"] = bytes_to_base64url(options.challenge)
+            # Save challenge to database (stateless, no HTTP sessions needed)
+            challenge_b64 = bytes_to_base64url(options.challenge)
+            
+            # Delete any stale challenges for this email (older than 5 minutes)
+            stale_time = timezone.now() - timedelta(minutes=5)
+            AuthenticationChallenge.objects.filter(email=user_email, created_at__lt=stale_time).delete()
+            
+            # Save new challenge
+            challenge_obj = AuthenticationChallenge.objects.create(
+                email=user_email,
+                challenge=challenge_b64
+            )
+            
             logger.info(f"Authentication started for {user_email}")
             
-            return JsonResponse({
-                'challenge': bytes_to_base64url(options.challenge),
+            response_data = {
+                'challenge': challenge_b64,
                 'timeout': options.timeout,
                 'rpId': options.rp_id,
-                'userVerification': options.user_verification,
+                'userVerification': 'preferred',  # Force 'preferred' instead of 'required' - Android compatibility
                 'allowCredentials': [
                     {
                         'type': cred['type'],
                         'id': bytes_to_base64url(cred['id']),
+                        # Empty transports array allows all transports (internal, hybrid, etc)
+                        # Required for Google Password Manager and Proton Pass cross-device sync
                     }
                     for cred in options.allow_credentials
                 ],
-            })
+            }
+            
+            # Return response
+            response = JsonResponse(response_data)
+            return response
         except Exception as e:
             logger.error(f"Authentication setup error: {str(e)}")
             return JsonResponse({'error': 'Authentication setup failed'}, status=500)
@@ -315,16 +337,27 @@ def authenticate_finish(request):
     """
     try:
         data = json.loads(request.body)
+    except json.JSONDecodeError as je:
+        logger.error(f"❌ JSON parsing failed: {str(je)}")
+        return JsonResponse({'error': f'Invalid JSON: {str(je)}'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=400)
+    
+    try:
         user_email = data.get('email', '').strip()
         credential = data.get('credential')
         
         if not user_email or not credential:
             return JsonResponse({'error': 'Email and credential required'}, status=400)
         
-        expected_challenge_b64 = request.session.get(f"fido2_auth_state_{user_email}")
-        if not expected_challenge_b64:
-            return JsonResponse({'error': 'Authentication session expired'}, status=400)
-            
+        # Retrieve challenge from database (stateless, no sessions needed)
+        try:
+            challenge_obj = AuthenticationChallenge.objects.filter(email=user_email).latest('created_at')
+            expected_challenge_b64 = challenge_obj.challenge
+        except AuthenticationChallenge.DoesNotExist:
+            logger.warning(f"❌ No database challenge found for {user_email}")
+            return JsonResponse({'error': 'Authentication session expired or challenge not found'}, status=400)
+        
         expected_challenge = base64url_to_bytes(expected_challenge_b64)
 
         try:
@@ -334,8 +367,10 @@ def authenticate_finish(request):
                 is_active=True
             )
         except WifiUser.DoesNotExist:
+            logger.error(f"User not found: {user_email}")
             return JsonResponse({'error': 'User not found'}, status=404)
         except PasskeyCredential.DoesNotExist:
+            logger.error(f"No passkey registered for {user_email}")
             return JsonResponse({'error': 'No passkey registered'}, status=404)
         
         try:
@@ -348,6 +383,7 @@ def authenticate_finish(request):
                 credential_public_key=base64url_to_bytes(credential_obj.public_key),
                 credential_current_sign_count=credential_obj.sign_count,
             )
+            logger.info(f"✅ Credential verified successfully! New sign count: {verified_auth.new_sign_count}")
             
             # KEY PART: Open 3-minute CSR window (act as Admin Validator)
             expiration_time = timezone.now() + timedelta(minutes=3)
@@ -360,7 +396,7 @@ def authenticate_finish(request):
             credential_obj.save()
             
             request.session.pop(f"fido2_auth_state_{user_email}", None)
-            logger.info(f"Authentication successful for {user_email} - CSR window opened")
+            logger.info(f"✅ Authentication successful for {user_email} - CSR window opened")
             
             return JsonResponse({
                 'success': True,
@@ -368,13 +404,11 @@ def authenticate_finish(request):
                 'expires_at': expiration_time.isoformat()
             })
         except Exception as e:
-            logger.error(f"Assertion verification failed: {str(e)}")
+            logger.error(f"❌ Assertion verification FAILED: {str(e)}")
             return JsonResponse({'error': f'Authentication failed: {str(e)}'}, status=400)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
-        logger.error(f"Authentication finish error: {str(e)}")
-        return JsonResponse({'error': 'Authentication failed'}, status=500)
+        logger.error(f"❌ OUTER exception in authenticate_finish: {str(e)}")
+        return JsonResponse({'error': f'Authentication failed: {str(e)}'}, status=400)
 
 
 @require_http_methods(['GET'])
@@ -387,3 +421,36 @@ def register_page(request):
 def authenticate_page(request):
     """Serve authentication page with passkey authentication UI"""
     return render(request, 'fido2_poc/authenticate.html')
+
+
+@require_http_methods(['GET'])
+def assetlinks_json(request):
+    """
+    Serve Digital Asset Links (DAL) JSON for Android app verification.
+    Generated dynamically from environment variables.
+    
+    Required for Android Credential Manager to share passkeys between web and native app.
+    
+    Configuration via environment variables:
+    - ANDROID_APP_PACKAGE: Android app package name (default: 'app.mywifipass')
+    - ANDROID_APP_SHA256: SHA256 certificate fingerprint of the Android app
+    
+    Accessed by Android at: https://your-domain/.well-known/assetlinks.json
+    """
+    try:
+        from .android_dal import get_assetlinks_data
+        
+        assetlinks_data = get_assetlinks_data()
+        
+        response = JsonResponse(
+            assetlinks_data,
+            safe=False,
+            content_type='application/json'
+        )
+        response['Cache-Control'] = 'public, max-age=3600'  # Cache for 1 hour
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generating assetlinks.json: {str(e)}")
+        return JsonResponse({'error': 'Failed to generate asset links'}, status=500)

@@ -29,4 +29,7 @@ urlpatterns = [
     path('authenticate/', views.authenticate_page, name='authenticate_page'),
     path('authenticate/start/', views.authenticate_start, name='authenticate_start'),
     path('authenticate/finish/', views.authenticate_finish, name='authenticate_finish'),
+    
+    # Digital Asset Links for Android app verification
+    path('assetlinks.json', views.assetlinks_json, name='assetlinks_json'),
 ]

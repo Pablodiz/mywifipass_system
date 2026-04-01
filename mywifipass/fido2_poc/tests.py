@@ -4,7 +4,7 @@
 
 import json
 from base64 import b64encode
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from mywifipass.models import WifiUser
@@ -105,6 +105,7 @@ class PasskeyCredentialModelTestCase(TestCase):
         self.assertIsNotNone(credential.last_used)
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FIDO2EndpointTestCase(TestCase):
     """
     Phase 3: Tests for FIDO2 WebAuthn endpoints.
@@ -118,7 +119,7 @@ class FIDO2EndpointTestCase(TestCase):
     
     def setUp(self):
         """Set up test client and test user."""
-        self.client = Client()
+        self.client = Client(enforce_csrf_checks=False, HTTP_X_FORWARDED_PROTO="https", secure=True)
         self.test_email = 'endpoint_test@example.com'
         self.test_name = 'Endpoint Test User'
         self.test_document = 'ENDPOINT123'
@@ -304,7 +305,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Authentication session expired')
+        self.assertEqual(response.json()['error'], 'Authentication session expired or challenge not found')
     
     def test_authenticate_finish_user_not_found(self):
         """Test: authenticate/finish with non-existent user returns 400 (session validation first)."""
@@ -317,7 +318,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Authentication session expired')
+        self.assertEqual(response.json()['error'], 'Authentication session expired or challenge not found')
     
     def test_authenticate_finish_no_passkey(self):
         """Test: authenticate/finish without passkey returns 400 (session validation first)."""
@@ -330,7 +331,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Authentication session expired')
+        self.assertEqual(response.json()['error'], 'Authentication session expired or challenge not found')
     
     # Invalid JSON tests
     
@@ -342,7 +343,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Invalid JSON')
+        self.assertIn('Invalid JSON', response.json()['error'])
     
     def test_register_finish_invalid_json(self):
         """Test: register/finish with invalid JSON returns 400."""
@@ -352,7 +353,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Invalid JSON')
+        self.assertIn('Invalid JSON', response.json()['error'])
     
     def test_authenticate_start_invalid_json(self):
         """Test: authenticate/start with invalid JSON returns 400."""
@@ -362,7 +363,7 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Invalid JSON')
+        self.assertIn('Invalid JSON', response.json()['error'])
     
     def test_authenticate_finish_invalid_json(self):
         """Test: authenticate/finish with invalid JSON returns 400."""
@@ -372,11 +373,15 @@ class FIDO2EndpointTestCase(TestCase):
             content_type='application/json'
         )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['error'], 'Invalid JSON')
+        self.assertIn('Invalid JSON', response.json()['error'])
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class FIDOPageTestCase(TestCase):
     """Test suite for HTML pages serving registration/authentication UI"""
+
+    def setUp(self):
+        self.client = Client(HTTP_X_FORWARDED_PROTO="https", secure=True)
 
     def test_register_page_renders(self):
         """Test: /fido2/register/ returns register.html template"""
