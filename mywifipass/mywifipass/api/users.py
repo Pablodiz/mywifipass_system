@@ -3,12 +3,15 @@
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
 import logging
+import json
+import time
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404
-from django.http import FileResponse
+from django.http import FileResponse, StreamingHttpResponse
 
 logger = logging.getLogger(__name__)
 from mywifipass.models import WifiUser, WifiNetworkLocation
@@ -36,6 +39,14 @@ from mywifipass.api.throttles import (
     DownloadThrottle,
     ValidationThrottle,
 )
+
+
+class ServerSentEventRenderer(BaseRenderer):
+    media_type = 'text/event-stream'
+    format = 'event-stream'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return b''
 
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
@@ -262,6 +273,44 @@ class WifiUserViewSet(ModelViewSet):
         else:
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
+    def _wants_authorization_stream(self, request) -> bool:
+        accept_header = request.headers.get('Accept', '')
+        return 'text/event-stream' in accept_header or request.query_params.get('stream') == '1'
+
+    def _format_sse_event(self, event_name: str, payload: dict) -> str:
+        return f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
+
+    def _authorization_stream(self, user: WifiUser, network: WifiNetworkLocation):
+        started_at = timezone.now().isoformat()
+        yield self._format_sse_event('connected', {
+            'user_uuid': str(user.user_uuid),
+            'network_uuid': str(network.location_uuid),
+            'timestamp': started_at,
+        })
+
+        max_checks = 90  # 90 * 2s = 3 minutes max stream duration
+        for check in range(max_checks):
+            user.refresh_from_db(fields=['has_attended', 'allow_access_expiration'])
+
+            if user.is_authorized_for_network(network):
+                yield self._format_sse_event('authorized', {
+                    'user_uuid': str(user.user_uuid),
+                    'network_uuid': str(network.location_uuid),
+                    'authorized_at': timezone.now().isoformat(),
+                    'expires_at': user.allow_access_expiration.isoformat() if user.allow_access_expiration else None,
+                })
+                return
+
+            # Send keepalive every ~10 seconds so proxies keep the stream open.
+            if check % 5 == 0:
+                yield self._format_sse_event('heartbeat', {'timestamp': timezone.now().isoformat()})
+
+            time.sleep(2)
+
+        yield self._format_sse_event('timeout', {
+            'message': 'Authorization was not granted within stream window.'
+        })
+
     @swagger_auto_schema(tags = swagger_tags)
     @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[CertificateSigningThrottle])
     def sign_certificate(self, request, *args, **kwargs):
@@ -428,14 +477,30 @@ class WifiUserViewSet(ModelViewSet):
     #     return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[ValidationThrottle])
+    @action(
+        detail=True,
+        methods=['get'],
+        permission_classes=[AllowAny],
+        throttle_classes=[ValidationThrottle],
+        renderer_classes=[JSONRenderer, ServerSentEventRenderer],
+    )
     def check_user_authorized(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}check_user_authorized/"""
         user = self.get_object()
         network = self.get_network()
         
-        if not network or not user.is_authorized_for_network(network):
+        if not network:
+            return Response({'error': 'Network location UUID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if self._wants_authorization_stream(request):
+            response = StreamingHttpResponse(self._authorization_stream(user, network), content_type='text/event-stream')
+            response['Cache-Control'] = 'no-cache'
+            response['Connection'] = 'keep-alive'
+            response['X-Accel-Buffering'] = 'no'
+            return response
+
+        if not user.is_authorized_for_network(network):
             return Response(
                 {'error': 'User is not allowed to access'}, 
                 status=status.HTTP_403_FORBIDDEN
