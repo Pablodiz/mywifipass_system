@@ -69,6 +69,9 @@ try:
         """
         # Add Fido2NetworkConfigInline to existing inlines
         inlines = list(getattr(OriginalNetworkAdmin, 'inlines', [])) + [Fido2NetworkConfigInline]
+
+        class Media:
+            js = ('fido2_poc/admin/fido2_requires_validator_lock.js',)
     
     # Unregister the original admin and re-register with FIDO2 support
     admin.site.unregister(WifiNetworkLocation)
