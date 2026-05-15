@@ -65,7 +65,7 @@ class WifiUserAdmin(ModelAdmin):
         networks = obj.networks.all()
         if networks:
             return ", ".join([network.name for network in networks])
-        return "—"
+        return "-"
     networks_display.short_description = "Networks"
 
     def has_change_permission(self, request, obj=None):

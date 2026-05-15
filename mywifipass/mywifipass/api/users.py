@@ -414,13 +414,19 @@ class WifiUserViewSet(ModelViewSet):
         serializer = self.get_serializer(user)
         data = serializer.data
         
-        # Add urls to the response data
+        # Add urls to the response data.
+        # is_user_authorized logic:
+        # - requires_validator=True (FIDO2 or normal) → False: force Android app
+        #   through the validation gate; SSE/check_user_authorized resolves the
+        #   actual status (admin may have pre-authorized).
+        # - requires_validator=False → True: no validators, user is immediately
+        #   authorized, Android app skips the gate.
         data.update({
             'validation_url': urls.validation_url(user),
             'certificates_url': urls.sign_certificate_url(user),
             'has_downloaded_url': urls.has_downloaded_url(user),
             'check_user_authorized_url': urls.check_user_authorized_url(user),
-            'is_user_authorized': user.is_authorized_for_network(network) if network else False
+            'is_user_authorized': not network.requires_validator if network else False
         })
         
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
