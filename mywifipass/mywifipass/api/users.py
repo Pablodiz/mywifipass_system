@@ -247,7 +247,7 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
 
 class CheckUserSerializer(serializers.Serializer):
     """For checking user information before authorizing"""
-    id_document = serializers.CharField()
+    id_document = serializers.CharField(required=False, allow_blank=True, default='')
     name = serializers.CharField()
     authorize_url = serializers.URLField()
 

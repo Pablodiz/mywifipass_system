@@ -110,7 +110,7 @@ class CSVImportForm(forms.Form):
 
     csv_file = forms.FileField(
         label="Select CSV File", 
-        help_text="Upload a CSV file with columns: name, email, id_document",
+        help_text="Upload a CSV file with columns: name, email, id_document (id_document is optional)",
     )
 
     def __init__(self, *args, **kwargs):
