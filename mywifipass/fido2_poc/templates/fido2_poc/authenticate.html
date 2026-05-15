@@ -9,14 +9,12 @@
 {% block content %}
 <div class="event-container">
     <h2 class="event-title">Authenticate with Passkey</h2>
-    
+
     <form id="authForm" class="my-form">
         <div class="form-fields">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required 
-                   placeholder="your.email@example.com">
-            <small style="color: #999; display: block; margin-top: -10px; margin-bottom: 15px;">Email associated with your passkey</small>
-
+            <p style="color: #666; margin-bottom: 15px;">
+                Click the button below and select your passkey when prompted.
+            </p>
             <div id="statusMessage" class="alert d-none" style="margin-bottom: 15px;" role="alert"></div>
         </div>
 
@@ -32,7 +30,7 @@
 
     <div id="successMessage" class="alert alert-success d-none" style="margin-top: 20px; padding: 20px; border-radius: 8px;" role="alert">
         <h5 style="color: var(--primary-color);">Authentication Successful!</h5>
-        <p>Your passkey has been verified. CSR signing window opened for <strong id="expiryTime">3 minutes</strong>.</p>
+        <p>Your passkey has been verified. CSR signing window opened for <strong>3 minutes</strong>.</p>
         <p style="margin-top: 10px; color: #666;"><small>Expires at: <span id="expiryTimestamp"></span></small></p>
     </div>
 </div>
@@ -50,29 +48,25 @@ function bufferToBase64url(buffer) {
         .replace(/=/g, '');
 }
 
-// WebAuthn Authentication Flow
+// WebAuthn discoverable-credential authentication flow.
+// No email is required: the browser shows a passkey picker and the server
+// identifies the user from the credential ID in the assertion.
 document.getElementById('authenticateBtn').addEventListener('click', async () => {
-    const email = document.getElementById('email').value.trim();
-    const statusDiv = document.getElementById('statusMessage');
     const authBtn = document.getElementById('authenticateBtn');
-    
-    if (!email) {
-        showStatus('Please enter your email', 'danger');
-        return;
-    }
 
     try {
         authBtn.disabled = true;
-        // Step 1: Get authentication challenge from server
+
+        // Step 1: Get challenge from server (no email - discoverable mode)
         showStatus('Generating authentication challenge...', 'info');
-        
+
         const startResponse = await fetch('/fido2/authenticate/start/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: JSON.stringify({ email: email })
+            body: JSON.stringify({})
         });
 
         if (!startResponse.ok) {
@@ -81,25 +75,27 @@ document.getElementById('authenticateBtn').addEventListener('click', async () =>
         }
 
         const options = await startResponse.json();
-        showStatus('Challenge received. Please authenticate with your passkey...', 'info');
+        // session_id is used in the finish request instead of email
+        const sessionId = options.session_id;
 
-        // Step 2: Get assertion from device authenticator
+        showStatus('Challenge received. Please select your passkey...', 'info');
+
+        // Step 2: Get assertion from browser authenticator.
+        // allowCredentials is empty ([]) so the browser shows a passkey picker.
         options.challenge = new Uint8Array(base64ToArrayBuffer(options.challenge));
-        options.allowCredentials = options.allowCredentials.map(cred => ({
+        options.allowCredentials = (options.allowCredentials || []).map(cred => ({
             ...cred,
             id: new Uint8Array(base64ToArrayBuffer(cred.id))
         }));
 
-        const assertion = await navigator.credentials.get({
-            publicKey: options
-        });
+        const assertion = await navigator.credentials.get({ publicKey: options });
 
         if (!assertion) {
             throw new Error('Authentication was cancelled');
         }
 
-        // Step 3: Send assertion to server for verification
-        // Manually serialize assertion to avoid browser toJSON() inconsistencies
+        // Step 3: Send assertion to server for verification.
+        // Manually serialize to avoid browser toJSON() inconsistencies.
         const assertionData = {
             id: assertion.id,
             rawId: bufferToBase64url(assertion.rawId),
@@ -108,7 +104,9 @@ document.getElementById('authenticateBtn').addEventListener('click', async () =>
                 authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
                 clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
                 signature: bufferToBase64url(assertion.response.signature),
-                userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null
+                userHandle: assertion.response.userHandle
+                    ? bufferToBase64url(assertion.response.userHandle)
+                    : null
             },
             authenticatorAttachment: assertion.authenticatorAttachment
         };
@@ -121,10 +119,7 @@ document.getElementById('authenticateBtn').addEventListener('click', async () =>
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: JSON.stringify({
-                email: email,
-                credential: assertionData
-            })
+            body: JSON.stringify({ session_id: sessionId, credential: assertionData })
         });
 
         if (!finishResponse.ok) {
@@ -133,20 +128,18 @@ document.getElementById('authenticateBtn').addEventListener('click', async () =>
         }
 
         const result = await finishResponse.json();
-        
-        // Display success
+
         showStatus('', 'info');
         document.getElementById('authForm').classList.add('d-none');
-        
-        const expiryDate = new Date(result.expires_at);
-        document.getElementById('expiryTimestamp').textContent = expiryDate.toLocaleString();
+        document.getElementById('expiryTimestamp').textContent =
+            new Date(result.expires_at).toLocaleString();
         document.getElementById('successMessage').classList.remove('d-none');
 
     } catch (error) {
         console.error('Authentication error:', error);
         showStatus('Error: ' + error.message, 'danger');
     } finally {
-        document.getElementById('authenticateBtn').disabled = false;
+        authBtn.disabled = false;
     }
 });
 

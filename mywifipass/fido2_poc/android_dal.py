@@ -41,10 +41,20 @@ def _load_android_apps():
     
     apps = []
     
-    # 1. Official MyWifiPass app (always included)
+    # 1. Official MyWifiPass app (always included).
+    # Both release and debug fingerprints are listed so the app works when run
+    # directly from Android Studio (debug key) as well as from a signed release build.
+    #
+    # Release key: mi-release-key.jks (alias: pablo)
+    #   keytool -list -v -keystore mi-release-key.jks -alias pablo
+    # Debug key:   ~/.android/debug.keystore (alias: androiddebugkey)
+    #   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
     official_app = {
         'package_name': 'app.mywifipass',
-        'sha256_cert_fingerprints': ['9A:7F:C4:A8:76:FD:03:04:85:D8:7E:60:46:36:27:9A:3C:BB:B3:F9:91:27:40:CA:9A:AE:22:82:46:F6:13:2A']
+        'sha256_cert_fingerprints': [
+            '22:E6:53:4A:E9:6D:39:96:C2:E5:0B:7A:36:17:54:82:7B:FD:50:07:21:0C:BD:EA:5F:AF:3E:D1:68:EE:88:0E',  # release
+            '9A:7F:C4:A8:76:FD:03:04:85:D8:7E:60:46:36:27:9A:3C:BB:B3:F9:91:27:40:CA:9A:AE:22:82:46:F6:13:2A',  # debug
+        ]
     }
     apps.append(official_app)
     logger.info("[Android DAL] Loaded official MyWifiPass app (app.mywifipass)")

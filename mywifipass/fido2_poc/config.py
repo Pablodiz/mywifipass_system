@@ -45,11 +45,15 @@ def _load_fido2_config():
     # Build expected origins (web + Android)
     expected_origins = [f"https://{domain}", f"http://{domain}"]
     
-    # Add Android app origins
-    # 1. Official MyWifiPass app (always included)
-    official_mywifipass_hash = 'android:apk-key-hash:mn_EqHb9AwSF2H5gRjYnmjy7s_mRJ0DKmq4igkb2Eyo'
-    expected_origins.append(official_mywifipass_hash)
-    logger.info("[FIDO2] Loaded official MyWifiPass app origin (app.mywifipass)")
+    # Add Android app origins - both release and debug keys so the app works
+    # whether run from Android Studio or installed as a signed release APK.
+    #
+    # To recompute these hashes:
+    #   keytool -exportcert -keystore <keystore> -alias <alias> [-storepass <pass>] |
+    #   openssl sha256 -binary | openssl base64 | tr '+/' '-_' | tr -d '='
+    expected_origins.append('android:apk-key-hash:IuZTSultOZbC5Qt6NhdUgnv9UAchDL3qX68-0WjuiA4')  # release (mi-release-key.jks)
+    expected_origins.append('android:apk-key-hash:mn_EqHb9AwSF2H5gRjYnmjy7s_mRJ0DKmq4igkb2Eyo')  # debug (~/.android/debug.keystore)
+    logger.info("[FIDO2] Loaded official MyWifiPass app origins (release + debug)")
     
     # 2. Additional custom app origins from environment (for custom-compiled apps)
     additional_origins_str = os.getenv('ANDROID_ADDITIONAL_ORIGINS', '').strip()

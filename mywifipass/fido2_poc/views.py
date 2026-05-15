@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import base64
+import uuid
 from datetime import timedelta
 
 from django.http import JsonResponse, FileResponse
@@ -237,82 +238,117 @@ def register_finish(request):
 def authenticate_start(request):
     """
     Begin FIDO2 authentication challenge.
-    
-    Request: POST /fido2/authenticate/start/
-    Body: { "email": "user@example.com" }
-    
-    Response: { "challenge": "...", "allowCredentials": [...], "timeout": ... }
+
+    Supports two modes, selected automatically based on whether the client
+    provides an email address:
+
+    --- Discoverable mode (default for the Android app) ---
+    Request body: {} or {"email": ""}
+    The server sends allowCredentials=[] so Android Credential Manager
+    presents a passkey picker to the user. A ``session_id`` UUID is generated,
+    stored with the challenge, and returned to the client so it can be echoed
+    back in /authenticate/finish/.
+
+    --- Email mode (legacy, backward-compatible) ---
+    Request body: {"email": "user@example.com"}
+    The server looks up the user's registered credential and returns it in
+    allowCredentials, bypassing the passkey picker. The challenge is keyed
+    by email in the database.
+
+    To switch the Android app back to email mode, pass ``network.user_email``
+    as ``username`` in ``MainController.validateWithFido2`` instead of ``""``.
     """
     try:
         data = json.loads(request.body)
-        user_email = data.get('email', '').strip()
-        
-        if not user_email:
-            return JsonResponse({'error': 'Email required'}, status=400)
-        
-        try:
-            wifi_user = WifiUser.objects.get(email=user_email)
-            credential_obj = PasskeyCredential.objects.get(
-                wifi_user=wifi_user,
-                is_active=True
-            )
-        except WifiUser.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-        except PasskeyCredential.DoesNotExist:
-            return JsonResponse({'error': 'No passkey registered for this user'}, status=404)
-        
-        try:
-            # Generate authentication options
-            options = generate_authentication_options(
-                rp_id=RP_ID,
-                user_verification=UserVerificationRequirement.REQUIRED,
-                allow_credentials=[
-                    {
-                        'type': 'public-key',
-                        'id': base64url_to_bytes(credential_obj.credential_id),
-                    }
-                ],
-            )
-            
-            # Save challenge to database (stateless, no HTTP sessions needed)
-            challenge_b64 = bytes_to_base64url(options.challenge)
-            
-            # Delete any stale challenges for this email (older than 5 minutes)
-            stale_time = timezone.now() - timedelta(minutes=5)
-            AuthenticationChallenge.objects.filter(email=user_email, created_at__lt=stale_time).delete()
-            
-            # Save new challenge
-            challenge_obj = AuthenticationChallenge.objects.create(
-                email=user_email,
-                challenge=challenge_b64
-            )
-            
-            logger.info(f"Authentication started for {user_email}")
-            
-            response_data = {
-                'challenge': challenge_b64,
-                'timeout': options.timeout,
-                'rpId': options.rp_id,
-                'userVerification': 'preferred',  # Force 'preferred' instead of 'required' - Android compatibility
-                'allowCredentials': [
-                    {
-                        'type': cred['type'],
-                        'id': bytes_to_base64url(cred['id']),
-                        # Empty transports array allows all transports (internal, hybrid, etc)
-                        # Required for Google Password Manager and Proton Pass cross-device sync
-                    }
-                    for cred in options.allow_credentials
-                ],
-            }
-            
-            # Return response
-            response = JsonResponse(response_data)
-            return response
-        except Exception as e:
-            logger.error(f"Authentication setup error: {str(e)}")
-            return JsonResponse({'error': 'Authentication setup failed'}, status=500)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    try:
+        user_email = data.get('email', '').strip()
+        discoverable_mode = not bool(user_email)
+
+        stale_time = timezone.now() - timedelta(minutes=5)
+
+        if not discoverable_mode:
+            # --- Email mode ---
+            try:
+                wifi_user = WifiUser.objects.get(email=user_email)
+                credential_obj = PasskeyCredential.objects.get(
+                    wifi_user=wifi_user,
+                    is_active=True
+                )
+            except WifiUser.DoesNotExist:
+                return JsonResponse({'error': 'User not found'}, status=404)
+            except PasskeyCredential.DoesNotExist:
+                return JsonResponse({'error': 'No passkey registered for this user'}, status=404)
+
+            allow_credentials_list = [
+                {
+                    'type': 'public-key',
+                    'id': base64url_to_bytes(credential_obj.credential_id),
+                }
+            ]
+            # Purge stale email-mode challenges for this user
+            AuthenticationChallenge.objects.filter(
+                email=user_email, created_at__lt=stale_time
+            ).delete()
+        else:
+            # --- Discoverable mode: empty allowCredentials ---
+            allow_credentials_list = []
+            # Purge stale discoverable challenges (session_id present, no email)
+            AuthenticationChallenge.objects.filter(
+                email__isnull=True, created_at__lt=stale_time
+            ).delete()
+
+        options = generate_authentication_options(
+            rp_id=RP_ID,
+            user_verification=UserVerificationRequirement.REQUIRED,
+            allow_credentials=allow_credentials_list,
+        )
+
+        challenge_b64 = bytes_to_base64url(options.challenge)
+
+        if not discoverable_mode:
+            AuthenticationChallenge.objects.create(
+                email=user_email,
+                challenge=challenge_b64,
+            )
+            session_id_str = None
+        else:
+            new_session_id = uuid.uuid4()
+            AuthenticationChallenge.objects.create(
+                email=None,
+                session_id=new_session_id,
+                challenge=challenge_b64,
+            )
+            session_id_str = str(new_session_id)
+
+        logger.info(
+            f"Authentication started - mode={'discoverable' if discoverable_mode else 'email'}"
+            + (f", user={user_email}" if not discoverable_mode else f", session={session_id_str}")
+        )
+
+        response_data = {
+            'challenge': challenge_b64,
+            'timeout': options.timeout,
+            'rpId': options.rp_id,
+            # 'preferred' instead of 'required' for Android Credential Manager compatibility
+            'userVerification': 'preferred',
+            'allowCredentials': [
+                {
+                    'type': cred['type'],
+                    'id': bytes_to_base64url(cred['id']),
+                    # Omitting 'transports' allows all transports (internal, hybrid, etc.)
+                    # Required for Google Password Manager and cross-device passkey sync
+                }
+                for cred in options.allow_credentials
+            ],
+        }
+        if session_id_str:
+            response_data['session_id'] = session_id_str
+
+        return JsonResponse(response_data)
+
     except Exception as e:
         logger.error(f"Authentication start error: {str(e)}")
         return JsonResponse({'error': 'Authentication setup failed'}, status=500)
@@ -323,13 +359,27 @@ def authenticate_start(request):
 def authenticate_finish(request):
     """
     Complete FIDO2 authentication - Acts as Admin Validator.
-    
-    CRITICAL: Sets allow_access_expiration = now + 3 minutes (opens CSR window)
-    
-    Request: POST /fido2/authenticate/finish/
-    Body: { "email": "user@example.com", "credential": {...} }
-    
-    Response: {
+
+    CRITICAL: Sets allow_access_expiration = now + 3 minutes (opens CSR window).
+
+    Supports two modes, matching /authenticate/start/:
+
+    --- Discoverable mode (default for the Android app) ---
+    Request body: {"session_id": "<uuid>", "credential": {...}}
+    The challenge is retrieved by session_id. The authenticated user is
+    identified from credential.id, which maps directly to
+    PasskeyCredential.credential_id in the database - no email needed.
+
+    --- Email mode (legacy, backward-compatible) ---
+    Request body: {"email": "user@example.com", "credential": {...}}
+    The challenge is retrieved by email and the user is looked up the
+    same way as before.
+
+    To switch the Android app back to email mode, pass ``network.user_email``
+    as ``username`` in ``MainController.validateWithFido2`` instead of ``""``.
+
+    Response (both modes):
+    {
         "success": true,
         "message": "CSR signing window opened (3 minutes)",
         "expires_at": "2026-03-27T14:35:42.123456Z"
@@ -338,43 +388,79 @@ def authenticate_finish(request):
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError as je:
-        logger.error(f"❌ JSON parsing failed: {str(je)}")
+        logger.error(f"JSON parsing failed: {str(je)}")
         return JsonResponse({'error': f'Invalid JSON: {str(je)}'}, status=400)
-    except Exception as e:
-        return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=400)
-    
+
     try:
         user_email = data.get('email', '').strip()
+        session_id_str = data.get('session_id', '').strip()
         credential = data.get('credential')
-        
-        if not user_email or not credential:
-            return JsonResponse({'error': 'Email and credential required'}, status=400)
-        
-        # Retrieve challenge from database (stateless, no sessions needed)
-        try:
-            challenge_obj = AuthenticationChallenge.objects.filter(email=user_email).latest('created_at')
-            expected_challenge_b64 = challenge_obj.challenge
-        except AuthenticationChallenge.DoesNotExist:
-            logger.warning(f"❌ No database challenge found for {user_email}")
-            return JsonResponse({'error': 'Authentication session expired or challenge not found'}, status=400)
-        
-        expected_challenge = base64url_to_bytes(expected_challenge_b64)
 
+        if not credential:
+            return JsonResponse({'error': 'Credential required'}, status=400)
+
+        # Discoverable mode: session_id present, no email
+        discoverable_mode = bool(session_id_str) and not bool(user_email)
+
+        if not discoverable_mode and not user_email:
+            return JsonResponse({'error': 'email or session_id required'}, status=400)
+
+        # --- Resolve challenge ---
+        if not discoverable_mode:
+            try:
+                challenge_obj = AuthenticationChallenge.objects.filter(
+                    email=user_email
+                ).latest('created_at')
+            except AuthenticationChallenge.DoesNotExist:
+                logger.warning(f"No challenge found for email {user_email}")
+                return JsonResponse(
+                    {'error': 'Authentication session expired or challenge not found'}, status=400
+                )
+        else:
+            try:
+                challenge_obj = AuthenticationChallenge.objects.get(session_id=session_id_str)
+            except AuthenticationChallenge.DoesNotExist:
+                logger.warning(f"No challenge found for session_id {session_id_str}")
+                return JsonResponse({'error': 'Session not found or expired'}, status=400)
+
+            if timezone.now() - challenge_obj.created_at > timedelta(minutes=5):
+                challenge_obj.delete()
+                return JsonResponse({'error': 'Session expired'}, status=400)
+
+        expected_challenge = base64url_to_bytes(challenge_obj.challenge)
+
+        # --- Resolve user and credential ---
+        if not discoverable_mode:
+            try:
+                wifi_user = WifiUser.objects.get(email=user_email)
+                credential_obj = PasskeyCredential.objects.get(
+                    wifi_user=wifi_user,
+                    is_active=True
+                )
+            except WifiUser.DoesNotExist:
+                logger.error(f"User not found: {user_email}")
+                return JsonResponse({'error': 'User not found'}, status=404)
+            except PasskeyCredential.DoesNotExist:
+                logger.error(f"No passkey registered for {user_email}")
+                return JsonResponse({'error': 'No passkey registered'}, status=404)
+        else:
+            # In a WebAuthn assertion the 'id' field is the base64url-encoded
+            # credential ID - the same value stored in PasskeyCredential.credential_id.
+            raw_credential_id = credential.get('id') or credential.get('rawId', '')
+            if not raw_credential_id:
+                return JsonResponse({'error': 'Missing credential id in assertion'}, status=400)
+            try:
+                credential_obj = PasskeyCredential.objects.select_related('wifi_user').get(
+                    credential_id=raw_credential_id,
+                    is_active=True,
+                )
+                wifi_user = credential_obj.wifi_user
+            except PasskeyCredential.DoesNotExist:
+                logger.error(f"Credential not registered: {raw_credential_id}")
+                return JsonResponse({'error': 'Credential not registered'}, status=404)
+
+        # --- Verify assertion (identical for both modes) ---
         try:
-            wifi_user = WifiUser.objects.get(email=user_email)
-            credential_obj = PasskeyCredential.objects.get(
-                wifi_user=wifi_user,
-                is_active=True
-            )
-        except WifiUser.DoesNotExist:
-            logger.error(f"User not found: {user_email}")
-            return JsonResponse({'error': 'User not found'}, status=404)
-        except PasskeyCredential.DoesNotExist:
-            logger.error(f"No passkey registered for {user_email}")
-            return JsonResponse({'error': 'No passkey registered'}, status=404)
-        
-        try:
-            # Verify authentication
             verified_auth = verify_authentication_response(
                 credential=credential,
                 expected_challenge=expected_challenge,
@@ -383,31 +469,33 @@ def authenticate_finish(request):
                 credential_public_key=base64url_to_bytes(credential_obj.public_key),
                 credential_current_sign_count=credential_obj.sign_count,
             )
-            logger.info(f"✅ Credential verified successfully! New sign count: {verified_auth.new_sign_count}")
-            
-            # KEY PART: Open 3-minute CSR window (act as Admin Validator)
+            logger.info(f"Credential verified. New sign count: {verified_auth.new_sign_count}")
+
+            # KEY PART: Open 3-minute CSR window (acts as Admin Validator)
             expiration_time = timezone.now() + timedelta(minutes=3)
             wifi_user.allow_access_expiration = expiration_time
             wifi_user.save()
-            
-            # Update credential
+
             credential_obj.last_used = timezone.now()
             credential_obj.sign_count = verified_auth.new_sign_count
             credential_obj.save()
-            
-            request.session.pop(f"fido2_auth_state_{user_email}", None)
-            logger.info(f"✅ Authentication successful for {user_email} - CSR window opened")
-            
+
+            # Delete the used challenge immediately (no replay possible)
+            challenge_obj.delete()
+
+            logger.info(f"Authentication successful for {wifi_user.email} - CSR window opened")
             return JsonResponse({
                 'success': True,
                 'message': 'CSR signing window opened (3 minutes)',
-                'expires_at': expiration_time.isoformat()
+                'expires_at': expiration_time.isoformat(),
             })
+
         except Exception as e:
-            logger.error(f"❌ Assertion verification FAILED: {str(e)}")
+            logger.error(f"Assertion verification FAILED: {str(e)}")
             return JsonResponse({'error': f'Authentication failed: {str(e)}'}, status=400)
+
     except Exception as e:
-        logger.error(f"❌ OUTER exception in authenticate_finish: {str(e)}")
+        logger.error(f"Unexpected error in authenticate_finish: {str(e)}")
         return JsonResponse({'error': f'Authentication failed: {str(e)}'}, status=400)
 
 

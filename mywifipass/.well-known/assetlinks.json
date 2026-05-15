@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.mywifipass",
+      "sha256_cert_fingerprints": [
+        "9A:7F:C4:A8:76:FD:03:04:85:D8:7E:60:46:36:27:9A:3C:BB:B3:F9:91:27:40:CA:9A:AE:22:82:46:F6:13:2A"
+      ]
+    }
+  }
+]
