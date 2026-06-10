@@ -29,4 +29,4 @@ for SSID_DIR in "$BASE_DIR"/*/; do
   fi
 done
 
-pkill -u freerad freeradius # We kill the process to force a restart of the container
+pkill -u freerad freeradius # SIGTERM forces container restart so OpenSSL reloads CRL from disk
