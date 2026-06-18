@@ -1,12 +1,11 @@
 ---
 name: Question
-about: Please use the Discussion Forum to ask questions
+about: Ask a question about MyWifiPass System
 title: "[question] "
 labels: question
 assignees: ''
 
 ---
 
-Please use the [Discussion Forum](https://github.com/orgs/openwisp/discussions) to ask questions.
+Please [open a discussion](https://github.com/Pablodiz/mywifipass_system/discussions) in this repository to ask questions.
 
-We will take care of moving the discussion to a more relevant repository if needed.
