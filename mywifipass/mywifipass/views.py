@@ -3,16 +3,16 @@
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
 from mywifipass.models import WifiNetworkLocation
-from mywifipass.forms import WifiUserForm 
-from django.http import HttpResponseRedirect
+from mywifipass.forms import WifiUserForm
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
 from mywifipass.utils import generate_qr_code
 from mywifipass.api.auth_model import LoginToken
 from django.utils import timezone
 from datetime import timedelta
 from mywifipass.settings import BASE_URL
-import json 
+import json
 
 def wifi_network_locations_list(request):
     locations = WifiNetworkLocation.objects.all()
@@ -59,7 +59,15 @@ def wifi_user_autoregistration(request, location_uuid):
         
     return render(request, "mywifipass/wifiuser/register.html", {"form": form, "location": network, "breadcrumbs": breadcrumbs})
 
+@login_required
 def admin_qr_view(request):
+    """
+    Generate a QR code for admin login (displayed in admin interface).
+    
+    SECURITY NOTE: This view is accessed from the browser admin interface.
+    CSRF protection is automatically applied by Django's CsrfViewMiddleware.
+    The QR code contains sensitive login tokens and should only be accessible to authenticated admins.
+    """
     LoginToken.objects.filter(expires_at__lt=timezone.now()).delete()
     token = LoginToken.objects.create(
         user=request.user,

@@ -9,8 +9,11 @@ if [ ! -d "/djangox509/mywifipass/logos" ]; then
     mkdir -p /djangox509/mywifipass/logos
 fi
 
-if [ ! -f "/djangox509/mywifipass/secrets/.env" ]; then 
-    touch /djangox509/mywifipass/secrets/.env
+if [ ! -f "/djangox509/mywifipass/secrets/.env" ] || ! grep -q "DJANGO_SECRET_KEY=" "/djangox509/mywifipass/secrets/.env"; then 
+    echo "Generating new DJANGO_SECRET_KEY in secrets/.env..."
+    SECRET=$(python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+    echo "DJANGO_SECRET_KEY=\"$SECRET\"" >> /djangox509/mywifipass/secrets/.env
+    chmod 600 /djangox509/mywifipass/secrets/.env
 fi
 
 # Prepare the database

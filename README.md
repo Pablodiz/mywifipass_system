@@ -1,97 +1,107 @@
 # MyWifiPass System
 
-The comprehensive web application component of MyWifiPass for managing Wi-Fi clients and networks with EAP-TLS authentication.
+![Django](https://img.shields.io/badge/Django-4.2%2B-092E20?logo=django&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-BSD_3--Clause-blue)
+![Version](https://img.shields.io/badge/Version-1.3-orange)
 
-## Overview
+Server-side platform for managing Wi-Fi networks with **EAP-TLS** authentication. Handles the full X.509 certificate lifecycle - generation, signing, distribution, and revocation - with FreeRADIUS kept in sync via inotify.
 
-MyWifiPass System is the server-side component that provides a web-based management interface for implementing EAP-TLS authentication in enterprise wireless networks. It automates the complex processes of certificate management, RADIUS server configuration, and network deployment.
-
-## Features
-
-- **User Management**: Create and manage Wi-Fi users with automatic certificate generation
-- **Network Configuration**: Define and configure multiple wireless networks with EAP-TLS settings
-- **RADIUS Integration**: Automatically configures FreeRADIUS server for each managed network
-- **Certificate Management**: Full PKI lifecycle including generation, distribution, and revocation
-- **Email Notifications**: Automated certificate delivery to users
-- **QR Code Generation**: Create QR codes for easy Android app configuration
-- **OpenWISP Integration**: Simplified setup and basic configuration of OpenWISP for access point management
-- **RESTful API**: Integration capabilities with third-party systems
+---
 
 ## Architecture
 
-The system is built using a containerized microservices architecture:
+```mermaid
+graph LR
+    APP["Android App"] -->|"HTTPS / SSE"| MYWP
+    BROWSER["Browser"] -->|HTTPS| MYWP
 
-- **Web Application**: Django-based management interface
-- **RADIUS Server**: FreeRADIUS with EAP-TLS configuration
-- **Database**: PostgreSQL for data persistence
-- **Certificate Authority**: Internal PKI for certificate management
-- **OpenVPN Server**: Secure remote access gateway
+    subgraph Docker["Docker Compose"]
+        MYWP["mywifipass\nDjango + Gunicorn\nREST API · PKI · FIDO2"]
+        RADIUS["radius\nFreeRADIUS\nEAP-TLS · CRL"]
+        DB[("database\nPostgreSQL 15")]
+        VOL["shared-certs/\nvolume"]
+
+        MYWP --> DB
+        MYWP -->|writes| VOL
+        VOL -->|inotify| RADIUS
+    end
+
+    AP["Access Point"] -->|"RADIUS UDP 1812"| RADIUS
+```
+
+---
+
+## Features
+
+- **Full PKI automation** - generates CAs and signs client certificates on the server; private keys stay on-device (JCE RSA-2048 via the Android app)
+- **Identity validation** - before a certificate is signed, a user must be authorized either by a validator (event staff who checks the user's ID via the Android app) or by the user themselves via FIDO2/Passkey biometric authentication
+- **Instant RADIUS sync** - inotify watcher in the RADIUS container picks up new SSIDs and certificate changes in seconds
+- **Network & user management** - Django admin panel, web self-registration, CSV bulk import, mass email with inline QR codes
+- **Authorization streaming** - SSE endpoint lets the Android app wait for authorization in real time (< 2s)
+- **REST API** - fully documented (Swagger / ReDoc), token + session auth, rate limiting, nested routing
+
+---
 
 ## Quick Start
 
-1. **Clone and Setup**:
-   ```bash
-   git clone https://github.com/Pablodiz/mywifipass_system.git
-   cd mywifipass_system
-   ```
+```bash
+git clone https://github.com/Pablodiz/mywifipass_system.git
+cd mywifipass_system
+cp .env.example .env
+# Edit .env: set DB_PASS, SECRET_KEY, DOMAIN, and email credentials
+docker compose up -d
+```
 
-2. **Configure Environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+Admin panel: `http://<DOMAIN>/admin/` - default credentials `admin` / `admin`, **change immediately**.
 
-3. **Deploy with Docker**. Use `mywifipass` for deploying MyWifiPass system or `all` for including OpenWISP integrations:
-   ```bash
-   chmod +x deploy.sh
-   ./deploy.sh {mywifipass|all}
-   ```
+> Full setup details in the [Installation Guide](docs/installation.md). All environment variables documented in [Configuration](docs/configuration.md).
 
-## Configuration
+---
 
-Edit the `.env` file to configure:
-- Database credentials
-- Email settings for certificate delivery
-- Domain and SSL settings
-- RADIUS server configuration
-- OpenWISP integration settings
+## Documentation
 
-## Wi-Fi Pass Generation
+| Document | Content |
+|---|---|
+| [Architecture](docs/architecture.md) | Component diagrams, EAP-TLS & FIDO2 flows, database schema |
+| [Installation](docs/installation.md) | Docker Compose deployment, manual dev setup |
+| [Configuration](docs/configuration.md) | Complete `.env` reference, SMTP, FIDO2, SSL |
+| [Usage Guide](docs/usage.md) | Admin panel, CSV import, QR codes, email delivery, FIDO2 |
+| [API Reference](docs/api-reference.md) | 20+ endpoints, auth, SSE streaming, rate limits |
+| [FIDO2 Guide](docs/fido2-guide.md) | Passkey registration/authentication, discoverable vs email mode |
+| [RADIUS Integration](docs/radius-integration.md) | File-system sync, shell scripts, CRL automation |
+| [Security Model](docs/security.md) | Certificate lifecycle, symmetric key protection, threat model |
+| [Development](docs/development.md) | Local setup, testing, debugging, CI/CD |
+| [Project Structure](docs/project-structure.md) | Directory tree with explanations |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues: containers, RADIUS, certificates, FIDO2 |
+| [Contributing](docs/contributing.md) | PR rules, code style, commit conventions |
+| [Changelog](docs/changelog.md) | Version history |
 
-The system generates "Wi-Fi passes", which let Wi-Fi clients download the credentials needed for connecting to the networks. They include:
-- Network SSID
-- Metadata for contextualizing the network
-- URLs for obtaining the client certificates for EAP-TLS authentication and CA certificates for server validation
+> A basic [User Manual](user_manual.md) is also available for event administrators.
 
-## OpenWISP
+---
 
-MyWifiPass includes optional integration with OpenWISP for access point management. When deployed with the `all` option, the system provides:
+## Version History
 
-- **Automated Setup**: Simplified deployment of OpenWISP controller and dashboard
-- **Basic Configuration**: Pre-configured template for EAP-TLS configuration
-- **Access Point Auto-Configuration**: Generates setup scripts for easy AP deployment
+| Version | Date | Highlights |
+|---|---|---|
+| **v1.3** | Apr-May 2026 | FIDO2 passkey validator, Android Digital Asset Links |
+| **v1.2.1** | Mar 2026 | N:M user-network model, SSE authorization streaming, `end_date` cert expiry fix |
+| **v1.2** | Feb 2026 | Rate limiting, CSR validation, email sanitization, token cleanup |
+| **v1.1** | Sep-Oct 2025 | CSR architecture (on-device keys), symmetric key auth, CRL infrastructure |
+| **v1.0** | Jul 2025 | Original TFG - server-side cert generation, FreeRADIUS integration |
 
-The OpenWISP integration is designed to get you started quickly with access point management, though advanced OpenWISP features may require additional manual configuration.
+---
 
-### Access Point Setup
+## Related
 
-When deploying with the `all` option, MyWifiPass automatically generates a configuration script (`configure_openwisp.sh`) that simplifies access point integration:
+- **[MyWifiPass Android](https://github.com/Pablodiz/mywifipass_android)** - Android client for automated EAP-TLS certificate provisioning
+- **[TFG Repository](https://github.com/Pablodiz/TFG_proyecto)** - degree thesis project
 
-1. **Copy the script** to your target access point device
-2. **Execute the script** on the access point (requires internet connectivity)
-3. **Automatic configuration** of OpenWISP agent and network settings
-
-**Requirements**: Target access points must have internet access during the configuration process.
-
-## Related Projects
-
-- **[MyWifiPass Android](https://github.com/Pablodiz/mywifipass_android)**: Android app for automated network configuration
-- **[Main Project Repository](https://github.com/Pablodiz/TFG_proyecto)**: Complete project documentation and overview
-
-## User manual
-
-Refer to [the user manual](./user_manual.md) for help managing the system. 
+---
 
 ## License
 
-This project is part of the MyWifiPass ecosystem designed to simplify enterprise wireless security deployment.
+BSD 3-Clause License. Copyright (c) 2025, Pablo Diz de la Cruz. Retains original copyright from the `django-x509` library: Copyright (c) 2015, Federico Capoano / OpenWISP.

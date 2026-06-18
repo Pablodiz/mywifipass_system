@@ -12,11 +12,12 @@ from rest_framework.decorators import action
 from drf_yasg.utils import swagger_auto_schema
 class WifiNetworkLocationSerializer(serializers.ModelSerializer):
     """Detailed serializer for WifiNetworkLocation, used for all operations except listing."""
+
     class Meta:
         model = WifiNetworkLocation
         fields = [
             'name', 'SSID',
-            'location', 'description', 'brief_description', 'start_date', 'end_date',
+            'location', 'description', 'brief_description', 'start_date', 'end_date', 
             'form_link', 'is_registration_open', 'is_enabled_in_radius', 
             'is_visible_in_web', 'requires_validator', 'send_emails_automatically', 'logo', 'location_uuid'
         ]

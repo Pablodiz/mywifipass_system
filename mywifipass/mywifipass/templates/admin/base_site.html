@@ -16,7 +16,7 @@
     {{ block.super }}
 
     <div id="qrDropdown" class="qr-dropdown-content">
-        <img src="{% url 'admin_qr_view' %}" alt="QR Code" width="300" height="300">
+        <img id="qrImage" src="" alt="QR Code" width="300" height="300">
     </div>
 {% endblock %}
 
@@ -40,9 +40,15 @@
 </style>
 
 <script>
-    // Show/Hide QR code
+    // Show/Hide QR code — refresh token on every open so it never expires before being scanned
     function toggleQR() {
-        document.getElementById("qrDropdown").classList.toggle("show");
+        var dropdown = document.getElementById("qrDropdown");
+        var isVisible = dropdown.classList.contains("show");
+        dropdown.classList.toggle("show");
+        if (!isVisible) {
+            var img = document.getElementById("qrImage");
+            img.src = "{% url 'admin_qr_view' %}?t=" + Date.now();
+        }
         return false;
     }
     

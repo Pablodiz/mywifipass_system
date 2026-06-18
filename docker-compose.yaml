@@ -32,8 +32,15 @@ services:
       - EMAIL_USE_TLS
       - EMAIL_HOST_PORT
       - DOMAIN
-      - SSL 
-      - TIME_ZONE
+      - SERVER_IP
+      - ALLOWED_HOSTS
+      - CSRF_TRUSTED_ORIGINS
+      - SSL
+      - TZ
+      - MYWIFIPASS_FROM_NAME
+      - MYWIFIPASS_PLAYSTORE_URL
+      - ANDROID_ADDITIONAL_ORIGINS
+      - ANDROID_ADDITIONAL_APPS
   radius:
     build: ./our_radius
     container_name: radius-server

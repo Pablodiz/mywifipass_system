@@ -2,12 +2,18 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
+import logging
+import json
+import time
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from django.shortcuts import get_object_or_404
-from django.http import FileResponse
+from django.http import FileResponse, StreamingHttpResponse
+
+logger = logging.getLogger(__name__)
 from mywifipass.models import WifiUser, WifiNetworkLocation
 from mywifipass.utils import generate_qr_code
 import mywifipass.api.urls as urls 
@@ -26,33 +32,110 @@ import base64
 
 from drf_yasg.utils import swagger_auto_schema
 
+# Rate limiting imports
+from mywifipass.api.throttles import (
+    CertificateSigningThrottle,
+    AuthorizationThrottle,
+    DownloadThrottle,
+    ValidationThrottle,
+)
+
+
+class ServerSentEventRenderer(BaseRenderer):
+    media_type = 'text/event-stream'
+    format = 'event-stream'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return b''
+
 class WifiUserCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating a WifiUser.
+    Networks will be assigned via M2M relation.
     """
     class Meta:
         model = WifiUser
-        fields = ['name', 'email', 'id_document', 'wifiLocation']
+        fields = ['name', 'email', 'id_document']
 class WifiUserDetailSerializer(serializers.ModelSerializer):
-    """Complete details of the WifiUser """
-    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
-    ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
-    location = serializers.CharField(source='wifiLocation.location', read_only=True)
-    start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
-    end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
-    description = serializers.CharField(source='wifiLocation.description', read_only=True)
-    location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
-    location_uuid = serializers.UUIDField(source='wifiLocation.location_uuid', read_only=True)                   
+    """
+    Complete details of the WifiUser for a specific network.
+    Network is provided in serializer context.
+    """
+    network_common_name = serializers.SerializerMethodField()
+    ssid = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    location_name = serializers.SerializerMethodField()
+    location_uuid = serializers.SerializerMethodField()
+    is_user_authorized = serializers.SerializerMethodField()
+    requires_fido2_validation = serializers.SerializerMethodField()
+    
     class Meta:
         model = WifiUser
         fields = [
             'user_uuid', 'name', 'email', 'id_document', 
             'has_attended', 'has_downloaded_pass', 'allow_access_expiration',
             'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
-            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized'
+            'description', 'location_name', 'location_uuid', 'certificates_symmetric_key', 'is_user_authorized', 'requires_fido2_validation'
         ]
         read_only_fields = ['user_uuid', 'allow_access_expiration']
     
+    def get_network(self):
+        """Get the network from context"""
+        return self.context.get('network')
+    
+    def get_network_common_name(self, obj):
+        network = self.get_network()
+        if network and network.radius_Certificate:
+            return network.radius_Certificate.common_name
+        return None
+    
+    def get_ssid(self, obj):
+        network = self.get_network()
+        return network.SSID if network else None
+    
+    def get_location(self, obj):
+        network = self.get_network()
+        return network.location if network else None
+    
+    def get_start_date(self, obj):
+        network = self.get_network()
+        return network.start_date if network else None
+    
+    def get_end_date(self, obj):
+        network = self.get_network()
+        return network.end_date if network else None
+    
+    def get_description(self, obj):
+        network = self.get_network()
+        return network.description if network else None
+    
+    def get_location_name(self, obj):
+        network = self.get_network()
+        return network.name if network else None
+    
+    def get_location_uuid(self, obj):
+        network = self.get_network()
+        return network.location_uuid if network else None
+    
+    def get_is_user_authorized(self, obj):
+        network = self.get_network()
+        if network:
+            return obj.is_authorized_for_network(network)
+        return False
+        
+    def get_requires_fido2_validation(self, obj):
+        """Check if the network associated with this user requires FIDO2 validation."""
+        network = self.get_network()
+        if network:
+            try:
+                return network.fido2_config.requires_fido2
+            except (AttributeError, Exception):
+                pass
+        return False
+
 class WifiUserListSerializer(serializers.ModelSerializer):
     """Serializer for listing WifiUsers with basic information."""
     class Meta:
@@ -67,22 +150,65 @@ class WifiUserUpdateSerializer(serializers.ModelSerializer):
         fields = ['user_uuid', 'name', 'email', 'has_attended', 'has_downloaded_pass']
 
 class WifiUserWifiPassSerializer(serializers.ModelSerializer):
-    """Serializer for downloading the WifiUser pass."""
+    """
+    Serializer for downloading the WifiUser pass (WiFi credentials).
+    Network is provided in serializer context.
+    """
     email = serializers.EmailField(read_only=True)
-    network_common_name = serializers.CharField(source='wifiLocation.radius_Certificate.common_name', read_only=True)
-    ssid = serializers.CharField(source='wifiLocation.SSID', read_only=True)
-    location = serializers.CharField(source='wifiLocation.location', read_only=True)
-    start_date = serializers.DateField(source='wifiLocation.start_date', read_only=True)
-    end_date = serializers.DateField(source='wifiLocation.end_date', read_only=True)
-    description = serializers.CharField(source='wifiLocation.description', read_only=True)
-    location_name = serializers.CharField(source='wifiLocation.name', read_only=True)
+    network_common_name = serializers.SerializerMethodField()
+    ssid = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    start_date = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    location_name = serializers.SerializerMethodField()
     certificates_symmetric_key = serializers.SerializerMethodField()
+    requires_fido2_validation = serializers.SerializerMethodField()
+    fido2_authenticate_start_url = serializers.SerializerMethodField()
+    fido2_authenticate_finish_url = serializers.SerializerMethodField()
+    fido2_rp_id = serializers.SerializerMethodField()
+    
     class Meta:
         model = WifiUser
         fields = [
             'email', 'network_common_name', 'ssid', 'location', 'start_date', 'end_date',
-            'description', 'location_name', 'certificates_symmetric_key'
+            'description', 'location_name', 'certificates_symmetric_key', 'requires_fido2_validation',
+            'fido2_authenticate_start_url', 'fido2_authenticate_finish_url', 'fido2_rp_id'
         ]
+
+    def get_network(self):
+        """Get the network from context"""
+        return self.context.get('network')
+    
+    def get_network_common_name(self, obj):
+        network = self.get_network()
+        if network and network.radius_Certificate:
+            return network.radius_Certificate.common_name
+        return None
+    
+    def get_ssid(self, obj):
+        network = self.get_network()
+        return network.SSID if network else None
+    
+    def get_location(self, obj):
+        network = self.get_network()
+        return network.location if network else None
+    
+    def get_start_date(self, obj):
+        network = self.get_network()
+        return network.start_date if network else None
+    
+    def get_end_date(self, obj):
+        network = self.get_network()
+        return network.end_date if network else None
+    
+    def get_description(self, obj):
+        network = self.get_network()
+        return network.description if network else None
+    
+    def get_location_name(self, obj):
+        network = self.get_network()
+        return network.name if network else None
 
     def get_certificates_symmetric_key(self, obj):
         """Return the symmetric key for the user's certificates."""
@@ -90,10 +216,38 @@ class WifiUserWifiPassSerializer(serializers.ModelSerializer):
             return obj.certificates_symmetric_key.hex()
         return None
 
+    def get_requires_fido2_validation(self, obj):
+        """Check if the network requires FIDO2 validation for this WiFi pass."""
+        network = self.get_network()
+        if network:
+            try:
+                return network.fido2_config.requires_fido2
+            except (AttributeError, Exception):
+                pass
+        return False
+
+    def get_fido2_authenticate_start_url(self, obj):
+        """Return the complete URL for FIDO2 authentication start endpoint."""
+        from mywifipass.settings import BASE_URL
+        return BASE_URL + "fido2/authenticate/start/"
+
+    def get_fido2_authenticate_finish_url(self, obj):
+        """Return the complete URL for FIDO2 authentication finish endpoint."""
+        from mywifipass.settings import BASE_URL
+        return BASE_URL + "fido2/authenticate/finish/"
+
+    def get_fido2_rp_id(self, obj):
+        """Return the RP ID (Relying Party ID) for FIDO2 authentication."""
+        import os
+        domain = os.getenv('DOMAIN', 'localhost:8000')
+        # Extract domain without port (e.g., 'instance.mywifipass.com' from 'instance.mywifipass.com:8000')
+        rp_id = domain.split(':')[0]
+        return rp_id
+
 
 class CheckUserSerializer(serializers.Serializer):
     """For checking user information before authorizing"""
-    id_document = serializers.CharField()
+    id_document = serializers.CharField(required=False, allow_blank=True, default='')
     name = serializers.CharField()
     authorize_url = serializers.URLField()
 
@@ -101,7 +255,7 @@ class SignCSRSerializer(serializers.Serializer):
     """For signing a CSR"""
     csr = serializers.CharField()
     token = serializers.CharField()
-    androidVersion = serializers.CharField()
+    # androidVersion = serializers.CharField()  # DEPRECATED: no longer tracked
 
 class WifiUserViewSet(ModelViewSet):
     """
@@ -110,12 +264,25 @@ class WifiUserViewSet(ModelViewSet):
     lookup_field = 'user_uuid'
     swagger_tags = ['WiFi Users']  # Group users under "WiFi Users" in Swagger UI
 
-    def get_queryset(self):
-        """Filter users by network location UUID if provided or list all users""" 
+    def get_network(self):
+        """Retrieve the network from URL kwargs"""
         network_uuid = self.kwargs.get('network_location_uuid')
         if network_uuid:
-            return WifiUser.objects.filter(wifiLocation__location_uuid=network_uuid)
+            return get_object_or_404(WifiNetworkLocation, location_uuid=network_uuid)
+        return None
+
+    def get_queryset(self):
+        """Filter users by network location (via M2M) if provided or list all users""" 
+        network = self.get_network()
+        if network:
+            return WifiUser.objects.filter(networks=network)
         return WifiUser.objects.all()
+    
+    def get_serializer_context(self):
+        """Add network to serializer context"""
+        context = super().get_serializer_context()
+        context['network'] = self.get_network()
+        return context
     
     def get_serializer_class(self):
         """Select serializers"""
@@ -142,20 +309,63 @@ class WifiUserViewSet(ModelViewSet):
         return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
-        """Asign the network location to the user when creating"""
-        network_uuid = self.kwargs.get('network_location_uuid')
-        if network_uuid:
-            network = get_object_or_404(WifiNetworkLocation, location_uuid=network_uuid)
-            serializer.save(wifiLocation=network)
+        """Assign the network to the user (via M2M) when creating"""
+        network = self.get_network()
+        if network:
+            user = serializer.save()
+            user.networks.add(network)
         else:
             raise serializers.ValidationError("Network location UUID is required to create a user.")
 
+    def _wants_authorization_stream(self, request) -> bool:
+        accept_header = request.headers.get('Accept', '')
+        return 'text/event-stream' in accept_header or request.query_params.get('stream') == '1'
+
+    def _format_sse_event(self, event_name: str, payload: dict) -> str:
+        return f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
+
+    def _authorization_stream(self, user: WifiUser, network: WifiNetworkLocation):
+        started_at = timezone.now().isoformat()
+        yield self._format_sse_event('connected', {
+            'user_uuid': str(user.user_uuid),
+            'network_uuid': str(network.location_uuid),
+            'timestamp': started_at,
+        })
+
+        max_checks = 90  # 90 * 2s = 3 minutes max stream duration
+        for check in range(max_checks):
+            user.refresh_from_db(fields=['has_attended', 'allow_access_expiration'])
+
+            if user.is_authorized_for_network(network):
+                yield self._format_sse_event('authorized', {
+                    'user_uuid': str(user.user_uuid),
+                    'network_uuid': str(network.location_uuid),
+                    'authorized_at': timezone.now().isoformat(),
+                    'expires_at': user.allow_access_expiration.isoformat() if user.allow_access_expiration else None,
+                })
+                return
+
+            # Send keepalive every ~10 seconds so proxies keep the stream open.
+            if check % 5 == 0:
+                yield self._format_sse_event('heartbeat', {'timestamp': timezone.now().isoformat()})
+
+            time.sleep(2)
+
+        yield self._format_sse_event('timeout', {
+            'message': 'Authorization was not granted within stream window.'
+        })
+
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[CertificateSigningThrottle])
     def sign_certificate(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}sign_certificate/"""
         user = self.get_object()
+        network = self.get_network()
+        
+        if not network:
+            return Response({'error': 'Network location UUID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = SignCSRSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         csr_pem = serializer.validated_data['csr']
@@ -165,15 +375,21 @@ class WifiUserViewSet(ModelViewSet):
 
         # Convert memoryview to bytes for comparison
         user_key = bytes(user.certificates_symmetric_key)
-        user.android_version = serializer.validated_data['androidVersion']
+        # user.android_version = serializer.validated_data['androidVersion']  # DEPRECATED: no longer tracked
 
         if token != user_key:
             return Response({'error': 'Invalid token'}, status=status.HTTP_403_FORBIDDEN)
         
         try:
-            signed_cert, ca_cert = user.sign_csr(csr_pem)
+            signed_cert, ca_cert = user.sign_csr(csr_pem, network)
         except ValueError as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Log validation error for debugging; return generic message to client
+            logger.warning(f"CSR validation failed for user {user.user_uuid}: {str(e)}")
+            return Response({'error': 'Invalid certificate request. Please check your CSR format and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            # Log unexpected errors
+            logger.exception(f"Unexpected error signing CSR for user {user.user_uuid}")
+            return Response({'error': 'Certificate signing failed. Please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         user.deauthorize()
         return Response({
@@ -182,11 +398,13 @@ class WifiUserViewSet(ModelViewSet):
         }, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def download(self, request, *args, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}download/"""
         user = self.get_object()
+        network = self.get_network()
+        
         if user.has_downloaded_pass:
             return Response(
                 {'error': 'User has already downloaded the pass'}, 
@@ -196,19 +414,25 @@ class WifiUserViewSet(ModelViewSet):
         serializer = self.get_serializer(user)
         data = serializer.data
         
-        # Add urls to the response data
+        # Add urls to the response data.
+        # is_user_authorized logic:
+        # - requires_validator=True (FIDO2 or normal) → False: force Android app
+        #   through the validation gate; SSE/check_user_authorized resolves the
+        #   actual status (admin may have pre-authorized).
+        # - requires_validator=False → True: no validators, user is immediately
+        #   authorized, Android app skips the gate.
         data.update({
             'validation_url': urls.validation_url(user),
             'certificates_url': urls.sign_certificate_url(user),
             'has_downloaded_url': urls.has_downloaded_url(user),
             'check_user_authorized_url': urls.check_user_authorized_url(user),
-            'is_user_authorized': user.is_user_authorized
+            'is_user_authorized': not network.requires_validator if network else False
         })
         
         return Response(data, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def qr(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}qr/"""
@@ -221,7 +445,7 @@ class WifiUserViewSet(ModelViewSet):
         return response
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['get'], permission_classes=[IsAdminUser], throttle_classes=[ValidationThrottle])
     def validate(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}validate/"""
@@ -241,7 +465,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response(data)
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser], throttle_classes=[AuthorizationThrottle])
     def authorize(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}authorize/"""
@@ -303,13 +527,30 @@ class WifiUserViewSet(ModelViewSet):
     #     return Response({'pkcs12_b64': p12_b64}, status=status.HTTP_200_OK, headers={'Content-Type': 'application/json'})
     
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(
+        detail=True,
+        methods=['get'],
+        permission_classes=[AllowAny],
+        throttle_classes=[ValidationThrottle],
+        renderer_classes=[JSONRenderer, ServerSentEventRenderer],
+    )
     def check_user_authorized(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""GET {USER_PATH}check_user_authorized/"""
         user = self.get_object()
+        network = self.get_network()
         
-        if not user.is_user_authorized:
+        if not network:
+            return Response({'error': 'Network location UUID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if self._wants_authorization_stream(request):
+            response = StreamingHttpResponse(self._authorization_stream(user, network), content_type='text/event-stream')
+            response['Cache-Control'] = 'no-cache'
+            response['Connection'] = 'keep-alive'
+            response['X-Accel-Buffering'] = 'no'
+            return response
+
+        if not user.is_authorized_for_network(network):
             return Response(
                 {'error': 'User is not allowed to access'}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -318,7 +559,7 @@ class WifiUserViewSet(ModelViewSet):
         return Response({'message': 'User is authorized to access the network.'})
 
     @swagger_auto_schema(tags = swagger_tags)
-    @action(detail=True, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['post'], permission_classes=[AllowAny], throttle_classes=[DownloadThrottle])
     def downloaded(self, request, **kwargs):
         from mywifipass.api.urls import USER_PATH 
         f"""POST {USER_PATH}downloaded/"""

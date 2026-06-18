@@ -5,13 +5,14 @@
 import os
 from mywifipass.models import WifiNetworkLocation, MyCustomCert
 from OpenSSL import crypto
+from django.conf import settings
 
-# Export directory
-RADIUS_ROOT_DIR = "/djangox509/mywifipass/server_certs"
-RADIUS_PENDING_CERT_DIR = RADIUS_ROOT_DIR + "/pending"
-RADIUS_PROCESSED_CERT_DIR = RADIUS_ROOT_DIR + "/processed"
-RADIUS_DELETION_CERT_DIR = RADIUS_ROOT_DIR + "/deletion"
-RADIUS_UPDATE_CRL = RADIUS_ROOT_DIR + "/update_crl"
+# Export directories - use Django settings (configurable via RADIUS_CERT_DIR env var)
+RADIUS_ROOT_DIR = settings.RADIUS_CERT_DIR
+RADIUS_PENDING_CERT_DIR = os.path.join(RADIUS_ROOT_DIR, "pending")
+RADIUS_PROCESSED_CERT_DIR = os.path.join(RADIUS_ROOT_DIR, "processed")
+RADIUS_DELETION_CERT_DIR = os.path.join(RADIUS_ROOT_DIR, "deletion")
+RADIUS_UPDATE_CRL = os.path.join(RADIUS_ROOT_DIR, "update_crl")
 
 def export_certificates(wifiLocation: WifiNetworkLocation):
     """

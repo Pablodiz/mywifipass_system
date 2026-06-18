@@ -48,13 +48,26 @@ def generate_qr_code_base64(data: str) -> str:
     return f"data:image/png;base64,{base64_data}"
 
 
-def send_mail(user: WifiUser, update: bool = False) -> None:
+def send_mail(user: WifiUser, update: bool = False, network=None) -> None:
     from mywifipass.api.urls import user_qr_url, email_url # Import here to avoid circular import
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
     from email.mime.image import MIMEImage
     import smtplib
     from django.conf import settings
+    
+    # If no network specified, get the first network with auto-send enabled
+    if network is None:
+        network = user.networks.filter(send_emails_automatically=True).first()
+        
+    # If still no network found, get any network the user is assigned to
+    if network is None:
+        network = user.networks.first()
+        
+    # If user has no networks, we cannot send email
+    if network is None:
+        print(f"Warning: User {user.email} has no networks assigned. Cannot send email.")
+        return
     
     # Generate QR code for inline embedding (like company logos)
     qr_data = email_url(user)
@@ -68,7 +81,7 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
     html_content = render_to_string(
         "mywifipass/email/register_email.html",
         context={
-            "location": user.wifiLocation,
+            "location": network,
             "qr_code_url": "cid:qr_wifi_pass",  # Content-ID reference (like logos)
             "qr_code_base64": qr_base64,        # Base64 as backup
             "pass_url": email_url(user),
@@ -77,9 +90,9 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
         },
     )
 
-    subject_text = "Tu pase Wi-Fi para el evento: " + user.wifiLocation.name
+    subject_text = "Tu pase Wi-Fi para el evento: " + network.name
     if update:
-        subject_text = "Tu pase Wi-Fi para el evento: " + user.wifiLocation.name +" ha sido actualizado"
+        subject_text = "Tu pase Wi-Fi para el evento: " + network.name +" ha sido actualizado"
 
     # Create proper multipart/related message (like email signatures with logos)
     msg = MIMEMultipart('related')  # 'related' is key for inline attachments
@@ -92,7 +105,7 @@ def send_mail(user: WifiUser, update: bool = False) -> None:
     
     # Create text version for clients that don't support HTML
     text_body = f"""
-Tu pase WiFi para {user.wifiLocation.name}
+Tu pase WiFi para {network.name}
 
 Enlace directo: {email_url(user)}
 

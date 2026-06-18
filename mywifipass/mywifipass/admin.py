@@ -2,7 +2,7 @@
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
 
-from django.contrib.admin import ModelAdmin
+from django.contrib.admin import ModelAdmin, SimpleListFilter
 from django.contrib import admin
 from django.contrib import messages
 from django.utils.html import format_html
@@ -24,16 +24,49 @@ from mywifipass.api.urls import user_qr_url
 
 button_style = "display: inline-block; text-align: center; width: 120px; padding: 8px 12px; box-sizing: border-box;"
 
+
+class NetworkFilter(SimpleListFilter):
+    """
+    Custom filter to filter WifiUsers by their associated networks
+    """
+    title = "Network"
+    parameter_name = "network"
+
+    def lookups(self, request, model_admin):
+        """
+        Returns a list of tuples (value, label) for each network
+        """
+        networks = WifiNetworkLocation.objects.all().order_by('name')
+        return [(network.location_uuid, network.name) for network in networks]
+
+    def queryset(self, request, queryset):
+        """
+        Filter the queryset based on the selected network
+        """
+        if self.value():
+            return queryset.filter(networks__location_uuid=self.value())
+        return queryset
+
 class WifiUserAdmin(ModelAdmin):
     """
     Admin class for a WifiUser model
     """
-    list_display = ["name", "email", "id_document", "wifiLocation", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "android_version", "send_email_button", "revoke_certificate_button", "show_qr_button"]
+    list_display = ["name", "email", "id_document", "networks_display", "has_downloaded_pass", "has_attended", "email_sent", "email_sent_date", "send_email_button", "revoke_certificate_button", "show_qr_button"]
     search_fields = ["name", "email","id_document"] 
-    fields = ["name", "email","id_document", "wifiLocation", "email_sent", "email_sent_date"]
-    list_filter = ["wifiLocation", "email_sent", "has_attended", "has_downloaded_pass"]
+    fields = ["name", "email","id_document", "networks", "email_sent", "email_sent_date"]
+    list_filter = ["email_sent", "has_attended", "has_downloaded_pass", NetworkFilter]
     list_editable = ["has_downloaded_pass", "has_attended"]
     readonly_fields = ["email_sent", "email_sent_date"]
+
+    def networks_display(self, obj: WifiUser):
+        """
+        Display networks as a comma-separated list in admin list view
+        """
+        networks = obj.networks.all()
+        if networks:
+            return ", ".join([network.name for network in networks])
+        return "-"
+    networks_display.short_description = "Networks"
 
     def has_change_permission(self, request, obj=None):
         if obj and obj.certificate and obj.certificate.revoked:
@@ -59,11 +92,17 @@ class WifiUserAdmin(ModelAdmin):
     send_email_button.short_description = "Email Actions"
     
     def show_qr_button(self, obj:WifiUser):
-        url = user_qr_url(obj)
-        return format_html(
-            '<a class="button" style="{}" href="{}">Show QR</a>',
-            button_style, url
-        )
+        try:
+            url = user_qr_url(obj)
+            return format_html(
+                '<a class="button" style="{}" href="{}">Show QR</a>',
+                button_style, url
+            )
+        except ValueError as e:
+            return format_html(
+                '<span class="button" style="{}" disabled title="{}">No Networks</span>',
+                button_style, str(e)
+            )
     
     def revoke_certificate_button(self, obj: WifiUser):
         if obj.certificate: 
@@ -107,15 +146,15 @@ class WifiUserAdmin(ModelAdmin):
 
                     for row in reader:
                         try:
-                            selected_wifi_location = form.cleaned_data['wifiLocation']
-                            wifi_location = WifiNetworkLocation.objects.get(pk=selected_wifi_location)
+                            selected_networks = form.cleaned_data['networks']
                             user = WifiUser(
                                 name=row['name'],
                                 email=row['email'],
-                                id_document=row['id_document'],
-                                wifiLocation=wifi_location
+                                id_document=row.get('id_document', ''),
                             )
                             user.save()
+                            # Add the selected networks to the user
+                            user.networks.set(selected_networks)
                             success_count += 1
                         
                         except Exception as e:
