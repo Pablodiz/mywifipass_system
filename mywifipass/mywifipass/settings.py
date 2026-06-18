@@ -15,7 +15,8 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 from pathlib import Path
 from decouple import Config, RepositoryEnv
-import os 
+import os
+import sys 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'drf_yasg',
     'mywifipass',
+    'fido2_poc',  # FIDO2 Passkey Integration (sidecar app)
 ]
 
 MIDDLEWARE = [
@@ -227,6 +229,10 @@ DEBUG = os.getenv('DEBUG', default=False).lower () in ('true', '1', 'yes')
 # Example: ALLOWED_HOSTS=localhost,127.0.0.1,example.com
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
+# Add testserver for Django tests
+if 'testserver' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
+
 # Dynamically add DOMAIN and SERVER_IP to ALLOWED_HOSTS to make deployment easier
 _domain_host = os.getenv('DOMAIN', '').split(':')[0]
 _server_ip = os.getenv('SERVER_IP', '')
@@ -234,6 +240,9 @@ if _domain_host and _domain_host not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_domain_host)
 if _server_ip and _server_ip not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_server_ip)
+
+# Disable automatic trailing slash appending (to avoid redirects for API endpoints)
+APPEND_SLASH = False
 
 # Add Trusted Origins to ensure CSRF does not break when behind a reverse proxy
 CSRF_TRUSTED_ORIGINS = [
@@ -249,7 +258,7 @@ for ah in ALLOWED_HOSTS:
 
 ssl = os.getenv('SSL', default='False').lower() in ('true', '1', 'yes')
 
-if ssl:
+if ssl and 'test' not in sys.argv:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
@@ -267,3 +276,39 @@ EMAIL_TIMEOUT = 5
 # Radius certificate export directories (configurable via environment)
 # Default: /dockerx509/mywifipass/server_certs (or set RADIUS_CERT_DIR env var)
 RADIUS_CERT_DIR = os.getenv('RADIUS_CERT_DIR', '/djangox509/mywifipass/server_certs')
+
+# Logging Configuration - Send logs to stdout for Docker
+_log_level_MYWIFIPASS = 'INFO'
+_log_level_FIDO2 = 'DEBUG' if DEBUG else 'INFO'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {name} {message}',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'fido2_poc': {
+            'handlers': ['console'],
+            'level': _log_level_FIDO2,
+            'propagate': False,
+        },
+        'django': {
+            'handlers': ['console'],
+            'level': _log_level_MYWIFIPASS,
+            'propagate': False,
+        },
+    },
+}
+if 'test' in sys.argv:
+    SECURE_SSL_REDIRECT = False
+

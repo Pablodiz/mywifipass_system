@@ -1,8 +1,7 @@
+#!/bin/bash
 # Copyright (c) 2025, Pablo Diz de la Cruz
 # All rights reserved.
 # Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information.
-
-#!/bin/bash
 
 BASE_DIR="/etc/raddb/server_certs"
 LOG_DIR="$BASE_DIR/logs"
@@ -30,4 +29,4 @@ for SSID_DIR in "$BASE_DIR"/*/; do
   fi
 done
 
-pkill -u freerad freeradius # We kill the process to force a restart of the container
+pkill -u freerad freeradius # SIGTERM forces container restart so OpenSSL reloads CRL from disk

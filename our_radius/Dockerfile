@@ -15,7 +15,7 @@ COPY ./config/*.sh /usr/local/bin/
 
 RUN apt-get update &&   \
     # We install envsubst
-    apt-get install -y gettext cron && \ 
+    apt-get install -y gettext cron inotify-tools && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir /etc/freeradius/tlscache && \
     chmod 700 /etc/freeradius/tlscache && \
@@ -32,9 +32,10 @@ EXPOSE 1812/udp 1813/udp
 # Env variables are replaced in the template, 
 # cron is started 
 # freeradius is started in debug mode as freerad user
-CMD /usr/local/bin/docker-entrypoint.sh && \ 
+CMD /usr/local/bin/docker-entrypoint.sh && \
     export RADIUS_SECRET=$(cat /etc/raddb/secret/secret.txt) && \
-    envsubst < /etc/raddb/clients.conf.template > /etc/raddb/clients.conf && \ 
+    envsubst < /etc/raddb/clients.conf.template > /etc/raddb/clients.conf && \
     chown freerad:freerad /etc/raddb/clients.conf && \
     cron && \
+    sh -c '/usr/local/bin/watch_ssids.sh &' && \
     freeradius -X

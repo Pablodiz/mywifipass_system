@@ -97,5 +97,5 @@ done
 # Reboot FreeRADIUS
 if [ $CHANGES -eq 1 ]; then
   echo "$(date) Changes detected, reloading FreeRADIUS..." >> "$LOG_DIR/reload.log"
-  pkill -u freerad freeradius # We kill the process to force a restart of the container
+  pkill -u freerad freeradius # SIGTERM forces container restart so OpenSSL reloads CRL from disk
 fi 

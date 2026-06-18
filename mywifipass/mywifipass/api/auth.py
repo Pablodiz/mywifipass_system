@@ -5,8 +5,8 @@
 import logging
 from django.shortcuts import get_object_or_404
 from django.http import Http404
-from django.views.decorators.csrf import requires_csrf_token
-from rest_framework.decorators import api_view, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
@@ -16,6 +16,7 @@ from mywifipass.api.throttles import LoginAttemptThrottle
 logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
+@permission_classes([AllowAny])
 @throttle_classes([LoginAttemptThrottle])
 def obtain_auth_token_username_token(request):
     """

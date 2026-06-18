@@ -1,0 +1,191 @@
+<!-- Copyright (c) 2025, Pablo Diz de la Cruz -->
+<!-- All rights reserved. -->
+<!-- Licensed under the BSD 3-Clause License. See LICENSE file in the project root for full license information. -->
+
+{% extends 'base.html' %}
+
+{% block title %}Authenticate with Passkey - My WiFi Pass{% endblock %}
+
+{% block content %}
+<div class="event-container">
+    <h2 class="event-title">Authenticate with Passkey</h2>
+
+    <form id="authForm" class="my-form">
+        <div class="form-fields">
+            <p style="color: #666; margin-bottom: 15px;">
+                Click the button below and select your passkey when prompted.
+            </p>
+            <div id="statusMessage" class="alert d-none" style="margin-bottom: 15px;" role="alert"></div>
+        </div>
+
+        <div class="submit-row text-center">
+            <button type="button" id="authenticateBtn" class="my-button">
+                Authenticate with Passkey
+            </button>
+            <button type="button" id="backBtn" class="my-button" style="margin-top: 10px; background-color: #ccc; color: #333;">
+                Back
+            </button>
+        </div>
+    </form>
+
+    <div id="successMessage" class="alert alert-success d-none" style="margin-top: 20px; padding: 20px; border-radius: 8px;" role="alert">
+        <h5 style="color: var(--primary-color);">Authentication Successful!</h5>
+        <p>Your passkey has been verified. CSR signing window opened for <strong>3 minutes</strong>.</p>
+        <p style="margin-top: 10px; color: #666;"><small>Expires at: <span id="expiryTimestamp"></span></small></p>
+    </div>
+</div>
+
+<script>
+function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let str = '';
+    for (let char of bytes) {
+        str += String.fromCharCode(char);
+    }
+    return btoa(str)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+// WebAuthn discoverable-credential authentication flow.
+// No email is required: the browser shows a passkey picker and the server
+// identifies the user from the credential ID in the assertion.
+document.getElementById('authenticateBtn').addEventListener('click', async () => {
+    const authBtn = document.getElementById('authenticateBtn');
+
+    try {
+        authBtn.disabled = true;
+
+        // Step 1: Get challenge from server (no email - discoverable mode)
+        showStatus('Generating authentication challenge...', 'info');
+
+        const startResponse = await fetch('/fido2/authenticate/start/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({})
+        });
+
+        if (!startResponse.ok) {
+            const error = await startResponse.json();
+            throw new Error(error.error || 'Failed to start authentication');
+        }
+
+        const options = await startResponse.json();
+        // session_id is used in the finish request instead of email
+        const sessionId = options.session_id;
+
+        showStatus('Challenge received. Please select your passkey...', 'info');
+
+        // Step 2: Get assertion from browser authenticator.
+        // allowCredentials is empty ([]) so the browser shows a passkey picker.
+        options.challenge = new Uint8Array(base64ToArrayBuffer(options.challenge));
+        options.allowCredentials = (options.allowCredentials || []).map(cred => ({
+            ...cred,
+            id: new Uint8Array(base64ToArrayBuffer(cred.id))
+        }));
+
+        const assertion = await navigator.credentials.get({ publicKey: options });
+
+        if (!assertion) {
+            throw new Error('Authentication was cancelled');
+        }
+
+        // Step 3: Send assertion to server for verification.
+        // Manually serialize to avoid browser toJSON() inconsistencies.
+        const assertionData = {
+            id: assertion.id,
+            rawId: bufferToBase64url(assertion.rawId),
+            type: assertion.type,
+            response: {
+                authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
+                clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
+                signature: bufferToBase64url(assertion.response.signature),
+                userHandle: assertion.response.userHandle
+                    ? bufferToBase64url(assertion.response.userHandle)
+                    : null
+            },
+            authenticatorAttachment: assertion.authenticatorAttachment
+        };
+
+        showStatus('Verifying assertion...', 'info');
+
+        const finishResponse = await fetch('/fido2/authenticate/finish/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ session_id: sessionId, credential: assertionData })
+        });
+
+        if (!finishResponse.ok) {
+            const error = await finishResponse.json();
+            throw new Error(error.error || 'Authentication verification failed');
+        }
+
+        const result = await finishResponse.json();
+
+        showStatus('', 'info');
+        document.getElementById('authForm').classList.add('d-none');
+        document.getElementById('expiryTimestamp').textContent =
+            new Date(result.expires_at).toLocaleString();
+        document.getElementById('successMessage').classList.remove('d-none');
+
+    } catch (error) {
+        console.error('Authentication error:', error);
+        showStatus('Error: ' + error.message, 'danger');
+    } finally {
+        authBtn.disabled = false;
+    }
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = '/';
+});
+
+function showStatus(message, type) {
+    const statusDiv = document.getElementById('statusMessage');
+    if (message) {
+        statusDiv.textContent = message;
+        statusDiv.className = 'alert alert-' + type + '';
+        statusDiv.classList.remove('d-none');
+    } else {
+        statusDiv.classList.add('d-none');
+    }
+}
+
+function base64ToArrayBuffer(base64url) {
+    // Convert base64url to base64 (add padding and replace chars)
+    const base64 = base64url
+        .replace(/-/g, '+')
+        .replace(/_/g, '/')
+        .padEnd(base64url.length + (4 - (base64url.length % 4)) % 4, '=');
+    
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

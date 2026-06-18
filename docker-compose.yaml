@@ -35,8 +35,12 @@ services:
       - SERVER_IP
       - ALLOWED_HOSTS
       - CSRF_TRUSTED_ORIGINS
-      - SSL 
+      - SSL
       - TZ
+      - MYWIFIPASS_FROM_NAME
+      - MYWIFIPASS_PLAYSTORE_URL
+      - ANDROID_ADDITIONAL_ORIGINS
+      - ANDROID_ADDITIONAL_APPS
   radius:
     build: ./our_radius
     container_name: radius-server

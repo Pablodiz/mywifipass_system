@@ -65,7 +65,7 @@ class WifiUserAdmin(ModelAdmin):
         networks = obj.networks.all()
         if networks:
             return ", ".join([network.name for network in networks])
-        return "—"
+        return "-"
     networks_display.short_description = "Networks"
 
     def has_change_permission(self, request, obj=None):
@@ -150,7 +150,7 @@ class WifiUserAdmin(ModelAdmin):
                             user = WifiUser(
                                 name=row['name'],
                                 email=row['email'],
-                                id_document=row['id_document'],
+                                id_document=row.get('id_document', ''),
                             )
                             user.save()
                             # Add the selected networks to the user

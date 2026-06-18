@@ -528,7 +528,7 @@ class AbstractCa(BaseX509):
             revoked.set_reason(b'unspecified')
             revoked.set_rev_date(bytes(str(now_str), 'utf8'))
             crl.add_revoked(revoked)
-        return crl.export(self.x509, self.pkey, days=1, digest=b'sha256')
+        return crl.export(self.x509, self.pkey, days=7, digest=b'sha256')
 
 
 AbstractCa._meta.get_field('validity_end').default = default_ca_validity_end

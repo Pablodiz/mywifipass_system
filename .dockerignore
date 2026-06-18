@@ -1,0 +1,11 @@
+# Exclude files that are not needed inside the mywifipass container
+our_radius/
+docs/
+wip_docs/
+customization/
+django_x509/docs/
+django_x509/tests/
+.git/
+.github/
+*.md
+test_pages.py
